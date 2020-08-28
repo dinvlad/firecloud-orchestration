@@ -21,7 +21,6 @@ import org.elasticsearch.index.query.QueryBuilders.{boolQuery, termQuery}
 import org.elasticsearch.search.aggregations.AggregationBuilders
 import org.elasticsearch.search.aggregations.metrics.sum.Sum
 import org.parboiled.common.FileUtils
-import spray.http.Uri.Authority
 import spray.json._
 
 import collection.JavaConverters._

@@ -1,6 +1,7 @@
 package org.broadinstitute.dsde.firecloud.model
 
-import spray.http.OAuth2BearerToken
+import akka.http.scaladsl.model.headers.OAuth2BearerToken
+
 
 /**
  * Created by dvoet on 7/21/15.

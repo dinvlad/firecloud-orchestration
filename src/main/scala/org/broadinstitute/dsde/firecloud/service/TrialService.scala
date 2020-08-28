@@ -4,6 +4,9 @@ import java.time.Instant
 import java.time.temporal.ChronoUnit
 
 import akka.actor.{Actor, ActorRef, Props}
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
+import akka.http.scaladsl.model.StatusCodes
+import akka.http.scaladsl.model.StatusCodes._
 import akka.pattern._
 import akka.util.Timeout
 import com.google.api.client.googleapis.json.GoogleJsonResponseException
@@ -35,26 +38,6 @@ import scala.util.{Failure, Success, Try}
 
 // TODO: Contain userEmail in value class for stronger type safety without incurring performance penalty
 object TrialService {
-  sealed trait TrialServiceMessage
-
-  case class EnableUsers(managerInfo: UserInfo, userEmails: Seq[String]) extends TrialServiceMessage
-  case class DisableUsers(managerInfo: UserInfo, userEmails: Seq[String]) extends TrialServiceMessage
-  case class EnrollUser(managerInfo: UserInfo) extends TrialServiceMessage
-  case class TerminateUsers(managerInfo: UserInfo, userEmails: Seq[String]) extends TrialServiceMessage
-  case class FinalizeUser(managerInfo: UserInfo) extends TrialServiceMessage
-  case class CreateProjects(userInfo:UserInfo, count:Int) extends TrialServiceMessage
-  case class VerifyProjects(userInfo:UserInfo) extends TrialServiceMessage
-  case class CountProjects(userInfo:UserInfo) extends TrialServiceMessage
-  case class AdoptProject(userInfo: UserInfo, projectName: String) extends TrialServiceMessage
-  case class ScratchProject(userInfo: UserInfo, projectName: String) extends TrialServiceMessage
-  case class Report(userInfo:UserInfo) extends TrialServiceMessage
-  case class RecordUserAgreement(userInfo: UserInfo) extends TrialServiceMessage
-  case class UpdateBillingReport(spreadsheetId: String) extends TrialServiceMessage
-
-  def props(service: () => TrialService): Props = {
-    Props(service())
-  }
-
   def constructor(app: Application, projectManager: ActorRef)()(implicit executionContext: ExecutionContext) =
     new TrialService(app.samDAO, app.thurloeDAO, app.rawlsDAO, app.trialDAO, app.googleServicesDAO, projectManager)
 }
@@ -63,29 +46,22 @@ final class TrialService
   (val samDao: SamDAO, val thurloeDao: ThurloeDAO, val rawlsDAO: RawlsDAO,
    val trialDao: TrialDAO, val googleDAO: GoogleServicesDAO, projectManager: ActorRef)
   (implicit protected val executionContext: ExecutionContext)
-  extends Actor with PermissionsSupport with SprayJsonSupport with TrialServiceSupport with LazyLogging {
+  extends PermissionsSupport with SprayJsonSupport with TrialServiceSupport with LazyLogging {
 
-  override def receive = {
-    case EnableUsers(managerInfo, userEmails) =>
-      asTrialCampaignManager(enableUsers(managerInfo, userEmails))(managerInfo) pipeTo sender
-    case DisableUsers(managerInfo, userEmails) =>
-      asTrialCampaignManager(disableUsers(managerInfo, userEmails))(managerInfo) pipeTo sender
-    case EnrollUser(userInfo) =>
-      enrollUser(userInfo) pipeTo sender
-    case TerminateUsers(managerInfo, userEmails) =>
-      asTrialCampaignManager(terminateUsers(managerInfo, userEmails))(managerInfo) pipeTo sender
-    case FinalizeUser(userInfo) =>
-      finalizeUser(userInfo) pipeTo sender
-    case CreateProjects(userInfo, count) => asTrialCampaignManager {createProjects(count)}(userInfo) pipeTo sender
-    case VerifyProjects(userInfo) => asTrialCampaignManager {verifyProjects}(userInfo) pipeTo sender
-    case CountProjects(userInfo) => asTrialCampaignManager {countProjects}(userInfo) pipeTo sender
-    case AdoptProject(userInfo, projectName) => asTrialCampaignManager {adoptProject(projectName)}(userInfo) pipeTo sender
-    case ScratchProject(userInfo, projectName) => asTrialCampaignManager {scratchProject(projectName)}(userInfo) pipeTo sender
-    case Report(userInfo) => asTrialCampaignManager {projectReport}(userInfo) pipeTo sender
-    case RecordUserAgreement(userInfo) => recordUserAgreement(userInfo) pipeTo sender
-    case UpdateBillingReport(spreadsheetId) => updateBillingReport(spreadsheetId) pipeTo sender
-    case x => throw new FireCloudException("unrecognized message: " + x.toString)
-  }
+  def EnableUsers(managerInfo: UserInfo, userEmails: Seq[String]) = asTrialCampaignManager(enableUsers(managerInfo, userEmails))(managerInfo)
+  def DisableUsers(managerInfo: UserInfo, userEmails: Seq[String]) = asTrialCampaignManager(disableUsers(managerInfo, userEmails))(managerInfo)
+  def EnrollUser(userInfo: UserInfo) = enrollUser(userInfo)
+  def TerminateUsers(managerInfo: UserInfo, userEmails: Seq[String]) = asTrialCampaignManager(terminateUsers(managerInfo, userEmails))(managerInfo)
+  def FinalizeUser(userInfo: UserInfo) = finalizeUser(userInfo)
+  def CreateProjects(userInfo: UserInfo, count: Int) = asTrialCampaignManager {createProjects(count)}(userInfo)
+  def VerifyProjects(userInfo: UserInfo) = asTrialCampaignManager {verifyProjects}(userInfo)
+  def CountProjects(userInfo: UserInfo) = asTrialCampaignManager {countProjects}(userInfo)
+  def AdoptProject(userInfo: UserInfo, projectName: String) = asTrialCampaignManager {adoptProject(projectName)}(userInfo)
+  def ScratchProject(userInfo: UserInfo, projectName: String) = asTrialCampaignManager {scratchProject(projectName)}(userInfo)
+  def Report(userInfo: UserInfo) = asTrialCampaignManager {projectReport}(userInfo)
+  def RecordUserAgreement(userInfo: UserInfo) = recordUserAgreement(userInfo)
+  def UpdateBillingReport(spreadsheetId: String) = updateBillingReport(spreadsheetId)
+//    case x => throw new FireCloudException("unrecognized message: " + x.toString)
 
   private def enableUserPostProcessing(updateStatus: Attempt, prevStatus: UserTrialStatus, newStatus: UserTrialStatus): Unit = {
     if (updateStatus != StatusUpdate.Success && newStatus.billingProjectName.isDefined) {
@@ -169,7 +145,7 @@ final class TrialService
   private def throwableToStatus(t: Throwable): String = {
     t match {
       case exr: FireCloudExceptionWithErrorReport =>
-        if (exr.errorReport.statusCode.contains(spray2akkaStatus(StatusCodes.NotFound)))
+        if (exr.errorReport.statusCode.contains(NotFound))
           StatusUpdate.toName(StatusUpdate.Failure("User not registered"))
         else StatusUpdate.toName(StatusUpdate.Failure(exr.errorReport.message))
       case ex: FireCloudException =>
@@ -376,7 +352,7 @@ final class TrialService
     implicit val timeout:Timeout = 1.minute // timeout to get a response from projectManager
     val create = projectManager ? StartCreation(count)
     create.map {
-      case c:CreateProjectsResponse if c.success => RequestComplete(StatusCodes.Accepted, c)
+      case c:CreateProjectsResponse if c.success => RequestComplete(Accepted, c)
       case c:CreateProjectsResponse if !c.success => RequestComplete(BadRequest, c)
       case _ => RequestComplete(InternalServerError)
     }
@@ -509,7 +485,7 @@ final class TrialService
           e match {
             case g: GoogleJsonResponseException =>
               logger.error(s"Unable to update spreadsheet [$spreadsheetId]: ${g.getDetails.getMessage}", e)
-              val code = StatusCodes.getForKey(g.getDetails.getCode).getOrElse(StatusCodes.InternalServerError)
+              val code = StatusCodes.getForKey(g.getDetails.getCode).getOrElse(InternalServerError)
               throw new FireCloudExceptionWithErrorReport(ErrorReport(code, e.getMessage))
             case _ => throw e
           }
@@ -517,7 +493,7 @@ final class TrialService
     }.recoverWith {
       case e: Throwable =>
         logger.error(s"Unable to update google spreadsheet [$spreadsheetId]: ${e.getMessage}", e)
-        throw new FireCloudExceptionWithErrorReport(ErrorReport(StatusCodes.InternalServerError, e.getMessage))
+        throw new FireCloudExceptionWithErrorReport(ErrorReport(InternalServerError, e.getMessage))
     }
   }
 

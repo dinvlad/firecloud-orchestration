@@ -2,6 +2,8 @@ package org.broadinstitute.dsde.firecloud.service
 
 import akka.Done
 import akka.actor.{Actor, ActorRef, Props}
+import akka.http.scaladsl.server.RequestContext
+import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpResponse, StatusCodes}
 import akka.pattern.pipe
 import akka.stream._
 import akka.stream.scaladsl._
@@ -16,9 +18,7 @@ import org.broadinstitute.dsde.firecloud.utils.StreamingActor.{FirstChunk, NextC
 import org.broadinstitute.dsde.firecloud.utils.{StreamingActor, TSVFormatter}
 import org.broadinstitute.dsde.firecloud.{Application, FireCloudConfig, FireCloudExceptionWithErrorReport}
 import org.broadinstitute.dsde.rawls.model._
-import spray.http.{ContentTypes, _}
 import spray.json._
-import spray.routing.RequestContext
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}

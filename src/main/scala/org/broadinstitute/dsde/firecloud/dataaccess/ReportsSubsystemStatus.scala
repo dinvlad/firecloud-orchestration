@@ -1,9 +1,9 @@
 package org.broadinstitute.dsde.firecloud.dataaccess
 
+import akka.http.scaladsl.model.HttpResponse
 import org.broadinstitute.dsde.firecloud.model.ModelJsonProtocol.impDropwizardHealth
 import org.broadinstitute.dsde.firecloud.model.DropwizardHealth
 import org.broadinstitute.dsde.workbench.util.health.SubsystemStatus
-import spray.http.HttpResponse
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 

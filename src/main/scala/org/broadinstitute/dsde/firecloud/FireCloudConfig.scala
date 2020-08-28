@@ -1,12 +1,13 @@
 package org.broadinstitute.dsde.firecloud
 
+import akka.http.scaladsl.model.Uri
+import akka.http.scaladsl.model.Uri.{Authority, Host}
+
 import scala.collection.JavaConverters._
 import com.typesafe.config.{ConfigFactory, ConfigObject}
 import org.broadinstitute.dsde.firecloud.service.{FireCloudDirectiveUtils, NihWhitelist}
 import org.broadinstitute.dsde.rawls.model.{EntityQuery, SortDirections}
 import org.broadinstitute.dsde.workbench.model.{WorkbenchEmail, WorkbenchGroupName}
-import spray.http.Uri
-import spray.http.Uri.{Authority, Host}
 
 import scala.util.Try
 

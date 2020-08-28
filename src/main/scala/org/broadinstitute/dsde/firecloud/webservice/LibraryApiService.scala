@@ -1,5 +1,7 @@
 package org.broadinstitute.dsde.firecloud.webservice
 
+import akka.http.scaladsl.model.StatusCodes
+import akka.http.scaladsl.server.Route
 import org.broadinstitute.dsde.firecloud.FireCloudConfig
 import org.broadinstitute.dsde.firecloud.model.DataUse._
 import org.broadinstitute.dsde.firecloud.model._
@@ -7,21 +9,21 @@ import org.broadinstitute.dsde.firecloud.model.ModelJsonProtocol._
 import org.broadinstitute.dsde.firecloud.model.{Curator, UserInfo}
 import org.broadinstitute.dsde.firecloud.service.{FireCloudDirectives, FireCloudRequestBuilding, LibraryService, OntologyService}
 import org.broadinstitute.dsde.firecloud.utils.StandardUserInfoDirectives
-import spray.client.pipelining._
-import spray.http.StatusCodes._
-import spray.http.Uri
-import spray.httpx.SprayJsonSupport._
+//import spray.client.pipelining._
+//import spray.http.StatusCodes._
+//import spray.http.Uri
+//import spray.httpx.SprayJsonSupport._
 import spray.json._
-import spray.routing._
+//import spray.routing._
 import spray.json.DefaultJsonProtocol._
 
 import scala.collection.JavaConverters._
 import scala.concurrent.ExecutionContext
 
-trait LibraryApiService extends HttpService with FireCloudRequestBuilding
+trait LibraryApiService extends FireCloudRequestBuilding
   with FireCloudDirectives with StandardUserInfoDirectives {
 
-  private implicit val ec: ExecutionContext = actorRefFactory.dispatcher
+  implicit val executionContext: ExecutionContext
 
   lazy val rawlsCuratorUrl = FireCloudConfig.Rawls.authUrl + "/user/role/curator"
 
@@ -33,19 +35,15 @@ trait LibraryApiService extends HttpService with FireCloudRequestBuilding
   val libraryRoutes: Route =
     pathPrefix("duos") {
       path("autocomplete" / Segment) { (searchTerm) =>
-        get { requestContext =>
-          perRequest(requestContext,
-            OntologyService.props(ontologyServiceConstructor),
-            OntologyService.AutocompleteOntology(searchTerm))
+        get {
+          complete { ontologyServiceConstructor().AutocompleteOntology(searchTerm) }
         }
       } ~
       path("researchPurposeQuery") {
         post {
           respondWithJSON {
-            entity(as[ResearchPurposeRequest]) { researchPurposeRequest => requestContext =>
-              perRequest(requestContext,
-                OntologyService.props(ontologyServiceConstructor),
-                OntologyService.ResearchPurposeQuery(researchPurposeRequest))
+            entity(as[ResearchPurposeRequest]) { researchPurposeRequest =>
+              complete { ontologyServiceConstructor().ResearchPurposeQuery(researchPurposeRequest) }
             }
           }
         }
@@ -53,10 +51,8 @@ trait LibraryApiService extends HttpService with FireCloudRequestBuilding
       path("structuredData") {
         post {
           respondWithJSON {
-            entity(as[StructuredDataRequest]) { request => requestContext =>
-              perRequest(requestContext,
-                OntologyService.props(ontologyServiceConstructor),
-                OntologyService.DataUseLimitation(request))
+            entity(as[StructuredDataRequest]) { request =>
+              complete { ontologyServiceConstructor().DataUseLimitation(request) }
             }
           }
         }
@@ -66,7 +62,7 @@ trait LibraryApiService extends HttpService with FireCloudRequestBuilding
       path("library-attributedefinitions-v1") {
         respondWithJSON {
           withResourceFileContents(LibraryService.schemaLocation) { jsonContents =>
-            complete(OK, jsonContents)
+            complete(StatusCodes.OK, jsonContents)
           }
         }
       }

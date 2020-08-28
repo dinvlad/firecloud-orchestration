@@ -1,6 +1,7 @@
 package org.broadinstitute.dsde.firecloud.dataaccess
 
 import akka.actor.ActorSystem
+import akka.http.scaladsl.model.{StatusCodes, Uri}
 import org.broadinstitute.dsde.firecloud.model.ModelJsonProtocol._
 import org.broadinstitute.dsde.firecloud.model.Trial.UserTrialStatus
 import org.broadinstitute.dsde.firecloud.model._
@@ -9,9 +10,9 @@ import org.broadinstitute.dsde.firecloud.webservice.UserApiService
 import org.broadinstitute.dsde.firecloud.{FireCloudConfig, FireCloudException, FireCloudExceptionWithErrorReport}
 import org.broadinstitute.dsde.rawls.model.ErrorReport
 import org.broadinstitute.dsde.workbench.util.health.SubsystemStatus
-import spray.client.pipelining._
-import spray.http._
-import spray.httpx.SprayJsonSupport._
+//import spray.client.pipelining._
+//import spray.http._
+//import spray.httpx.SprayJsonSupport._
 import spray.json.DefaultJsonProtocol._
 
 import scala.concurrent.{ExecutionContext, Future}

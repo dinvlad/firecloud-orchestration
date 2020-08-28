@@ -1,15 +1,16 @@
 package org.broadinstitute.dsde.firecloud.webservice
 
+import akka.http.scaladsl.model.Uri.Query
+import akka.http.scaladsl.model.{HttpMethods, Uri}
+import akka.http.scaladsl.server.Route
 import org.broadinstitute.dsde.firecloud.FireCloudConfig
 import org.broadinstitute.dsde.firecloud.service.FireCloudDirectives
-import spray.http.{HttpMethods, Uri}
-import spray.routing._
 
 import scala.concurrent.ExecutionContext
 
-trait Ga4ghApiService extends HttpService with FireCloudDirectives {
+trait Ga4ghApiService extends FireCloudDirectives {
 
-  private implicit val ec: ExecutionContext = actorRefFactory.dispatcher
+  implicit val executionContext: ExecutionContext
 
   private val agoraGA4GH = s"${FireCloudConfig.Agora.baseUrl}/ga4gh/v1"
 
@@ -31,7 +32,7 @@ trait Ga4ghApiService extends HttpService with FireCloudDirectives {
               val uri = if (params.isEmpty) {
                 targetUri
               } else {
-                targetUri.withQuery(params.toMap)
+                targetUri.withQuery(Query(params.toMap))
               }
               passthrough(uri, HttpMethods.GET)
             }

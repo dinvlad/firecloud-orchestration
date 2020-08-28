@@ -1,12 +1,12 @@
 package org.broadinstitute.dsde.firecloud.webservice
 
+import akka.http.scaladsl.model.HttpMethods.GET
+import akka.http.scaladsl.server.Route
 import org.broadinstitute.dsde.firecloud.FireCloudConfig
-import org.broadinstitute.dsde.firecloud.service.{FireCloudDirectives, PerRequestCreator}
+import org.broadinstitute.dsde.firecloud.service.FireCloudDirectives
 import org.broadinstitute.dsde.firecloud.utils.StandardUserInfoDirectives
-import spray.http.HttpMethods.GET
-import spray.routing._
 
-trait NotificationsApiService extends HttpService with PerRequestCreator with FireCloudDirectives with StandardUserInfoDirectives {
+trait NotificationsApiService extends  FireCloudDirectives with StandardUserInfoDirectives {
   private final val ApiPrefix = "api/notifications"
   private final val General = "general"
   private final val Workspace = "workspace"

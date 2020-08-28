@@ -2,11 +2,11 @@ package org.broadinstitute.dsde.firecloud.elastic
 
 import java.net.InetAddress
 
+import akka.http.scaladsl.model.Uri.Authority
 import org.elasticsearch.client.transport.TransportClient
 import org.elasticsearch.common.settings.Settings
 import org.elasticsearch.common.transport.InetSocketTransportAddress
 import org.elasticsearch.transport.client.PreBuiltTransportClient
-import spray.http.Uri.Authority
 
 object ElasticUtils {
   def buildClient(servers:Seq[Authority], clusterName: String): TransportClient = {

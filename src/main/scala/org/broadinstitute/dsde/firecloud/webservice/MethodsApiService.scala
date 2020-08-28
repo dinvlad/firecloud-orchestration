@@ -1,16 +1,19 @@
 package org.broadinstitute.dsde.firecloud.webservice
 
 import akka.actor.Props
+import akka.http.scaladsl.model.Uri.Query
+import akka.http.scaladsl.model.{HttpMethods, Uri}
+import akka.http.scaladsl.server.Route
 import org.broadinstitute.dsde.firecloud.{FireCloudConfig, FireCloudException}
 import org.broadinstitute.dsde.firecloud.core.{AgoraPermissionActor, AgoraPermissionHandler}
 import org.broadinstitute.dsde.firecloud.model.MethodRepository._
 import org.broadinstitute.dsde.firecloud.model.ModelJsonProtocol._
-import org.broadinstitute.dsde.firecloud.service.{FireCloudDirectives, PerRequestCreator}
+import org.broadinstitute.dsde.firecloud.service.FireCloudDirectives
 import org.broadinstitute.dsde.rawls.model.AgoraMethod
-import spray.http.{HttpMethods, Uri}
-import spray.httpx.SprayJsonSupport._
+//import spray.http.{HttpMethods, Uri}
+//import spray.httpx.SprayJsonSupport._
 import spray.json.DefaultJsonProtocol._
-import spray.routing.{HttpService, Route}
+//import spray.routing.{HttpService, Route}
 
 trait MethodsApiServiceUrls {
   val remoteMethodsPath = FireCloudConfig.Agora.authPrefix + "/methods"
@@ -23,8 +26,7 @@ trait MethodsApiServiceUrls {
   val localConfigsPath = "configurations"
 }
 
-trait MethodsApiService extends HttpService
-  with PerRequestCreator with FireCloudDirectives with MethodsApiServiceUrls {
+trait MethodsApiService extends FireCloudDirectives with MethodsApiServiceUrls {
 
   val methodsApiServiceRoutes: Route =
   // routes that are valid for both configurations and methods
@@ -38,7 +40,7 @@ trait MethodsApiService extends HttpService
       pathEnd {
         (get | post) {
           extract(_.request.method) { method =>
-            extract(_.request.uri.query) { query =>
+            extract(_.request.uri.query()) { query =>
               // only pass query params for GETs
               val targetUri = if (method == HttpMethods.GET)
                 Uri(passthroughBase).withQuery(query)
@@ -53,7 +55,7 @@ trait MethodsApiService extends HttpService
         pathEnd {
           (get | delete) {
             extract(_.request.method) { method =>
-              extract(_.request.uri.query) { query =>
+              extract(_.request.uri.query()) { query =>
                 // only pass query params for GETs
                 val baseUri = Uri(s"$passthroughBase/${urlify(namespace, name)}/$snapshotId")
                 val targetUri = if (method == HttpMethods.GET)
@@ -122,7 +124,7 @@ trait MethodsApiService extends HttpService
         pathPrefix( IntNumber ) { snapshotId =>
           pathEnd {
             post {
-              extract(_.request.uri.query) { query =>
+              extract(_.request.uri.query()) { query =>
                 passthrough(Uri(s"$passthroughBase/${urlify(namespace, name)}/$snapshotId").withQuery(query), HttpMethods.POST)
               }
             }

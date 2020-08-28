@@ -1,11 +1,13 @@
 package org.broadinstitute.dsde.firecloud.model
 
+import akka.http.scaladsl.model.StatusCode
+import akka.http.scaladsl.server.MalformedRequestContentRejection
 import org.broadinstitute.dsde.firecloud.model.DUOS._
 import org.broadinstitute.dsde.firecloud.model.DataUse._
 import org.broadinstitute.dsde.firecloud.model.ManagedGroupRoles.ManagedGroupRole
 import org.broadinstitute.dsde.rawls.model._
-import spray.http.StatusCode
-import spray.http.StatusCodes.BadRequest
+//import spray.http.StatusCode
+//import spray.http.StatusCodes.BadRequest
 import org.broadinstitute.dsde.firecloud.model.MethodRepository._
 import org.broadinstitute.dsde.firecloud.model.Ontology.{ESTermParent, TermParent, TermResource}
 import org.broadinstitute.dsde.firecloud.model.SamResource.{AccessPolicyName, ResourceId, UserPolicy}
@@ -13,8 +15,8 @@ import org.broadinstitute.dsde.firecloud.model.ShareLog.{Share, ShareType}
 import org.broadinstitute.dsde.firecloud.model.Trial.ProjectRoles.ProjectRole
 import org.broadinstitute.dsde.firecloud.model.Trial._
 import spray.json.{JsString, _}
-import spray.routing.{MalformedRequestContentRejection, RejectionHandler}
-import spray.routing.directives.RouteDirectives.complete
+//import spray.routing.{MalformedRequestContentRejection, RejectionHandler}
+//import spray.routing.directives.RouteDirectives.complete
 import org.broadinstitute.dsde.rawls.model.UserModelJsonSupport._
 import org.broadinstitute.dsde.rawls.model.WorkspaceACLJsonSupport.WorkspaceAccessLevelFormat
 import org.broadinstitute.dsde.workbench.model.ValueObjectFormat
@@ -309,7 +311,7 @@ object ModelJsonProtocol extends WorkspaceJsonSupport {
   // don't make this implicit! It would be pulled in by anything including ModelJsonProtocol._
   val entityExtractionRejectionHandler = RejectionHandler {
     case MalformedRequestContentRejection(errorMsg, _) :: _ =>
-      complete(BadRequest, errorMsg)
+      complete(StatusCodes.BadRequest, errorMsg)
   }
 
   // See http://stackoverflow.com/questions/24526103/generic-spray-client and

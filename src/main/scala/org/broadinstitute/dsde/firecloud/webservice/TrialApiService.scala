@@ -1,25 +1,25 @@
 package org.broadinstitute.dsde.firecloud.webservice
 
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
+import akka.http.scaladsl.model.StatusCodes
+import akka.http.scaladsl.server.{Route, StandardRoute}
 import org.broadinstitute.dsde.firecloud.model.Trial.TrialOperations
 import org.broadinstitute.dsde.firecloud.model.Trial.TrialOperations._
 import org.broadinstitute.dsde.firecloud.model.UserInfo
 import org.broadinstitute.dsde.firecloud.model.ModelJsonProtocol._
 import org.broadinstitute.dsde.firecloud.model._
-import org.broadinstitute.dsde.firecloud.service.TrialService.TrialServiceMessage
-import org.broadinstitute.dsde.firecloud.service.{FireCloudDirectives, PerRequestCreator, TrialService}
+import org.broadinstitute.dsde.firecloud.service.PerRequest.RequestComplete
+import org.broadinstitute.dsde.firecloud.service.{FireCloudDirectives, TrialService}
 import org.broadinstitute.dsde.firecloud.utils.StandardUserInfoDirectives
 import org.broadinstitute.dsde.rawls.model.ErrorReport
-import spray.http.StatusCodes.BadRequest
-import spray.httpx.SprayJsonSupport
 import spray.json.DefaultJsonProtocol._
-import spray.routing.{HttpService, Route}
 
-import scala.concurrent.ExecutionContextExecutor
+import scala.concurrent.ExecutionContext
 
-trait TrialApiService extends HttpService with PerRequestCreator with FireCloudDirectives
+trait TrialApiService extends FireCloudDirectives
   with StandardUserInfoDirectives with SprayJsonSupport {
 
-  private implicit val executionContext: ExecutionContextExecutor = actorRefFactory.dispatcher
+  implicit val executionContext: ExecutionContext
   val trialServiceConstructor: () => TrialService
 
   val trialApiServiceRoutes: Route = {
@@ -29,10 +29,7 @@ trait TrialApiService extends HttpService with PerRequestCreator with FireCloudD
         path("enable|disable|terminate".r) { (operation: String) =>
           requireUserInfo() { managerInfo => // We will need the manager's credentials for authentication downstream
             entity(as[Seq[String]]) { userEmails =>
-              requestContext =>
-                perRequest(requestContext,
-                  TrialService.props(trialServiceConstructor),
-                  updateUsers(managerInfo, TrialOperations.withName(operation), userEmails))
+              updateUsers(managerInfo, TrialOperations.withName(operation), userEmails)
             }
           }
         } ~
@@ -41,20 +38,15 @@ trait TrialApiService extends HttpService with PerRequestCreator with FireCloudD
             parameter("project".as[String] ? "") { projectName =>
               parameter("operation") { op =>
                 requireUserInfo() { userInfo =>
-                  requestContext =>
-                    val message = op.toLowerCase match {
-                      case "create" => Some(TrialService.CreateProjects(userInfo, count))
-                      case "verify" => Some(TrialService.VerifyProjects(userInfo))
-                      case "count" => Some(TrialService.CountProjects(userInfo))
-                      case "adopt" => Some(TrialService.AdoptProject(userInfo, projectName))
-                      case "scratch" => Some(TrialService.ScratchProject(userInfo, projectName))
-                      case "report" => Some(TrialService.Report(userInfo))
-                      case _ => None
+                    op.toLowerCase match {
+                      case "create" => complete { trialServiceConstructor().CreateProjects(userInfo, count) }
+                      case "verify" => complete { trialServiceConstructor().VerifyProjects(userInfo) }
+                      case "count" => complete { trialServiceConstructor().CountProjects(userInfo) }
+                      case "adopt" => complete { trialServiceConstructor().AdoptProject(userInfo, projectName) }
+                      case "scratch" => complete { trialServiceConstructor().ScratchProject(userInfo, projectName) }
+                      case "report" => complete { trialServiceConstructor().Report(userInfo) }
+                      case _ => complete { RequestComplete(StatusCodes.BadRequest, ErrorReport(s"invalid operation '$op'")) }
                     }
-                    if (message.nonEmpty)
-                      perRequest(requestContext, TrialService.props(trialServiceConstructor), message.get)
-                    else
-                      requestContext.complete(BadRequest, ErrorReport(s"invalid operation '$op'"))
                 }
               }
             }
@@ -66,9 +58,9 @@ trait TrialApiService extends HttpService with PerRequestCreator with FireCloudD
 
   private def updateUsers(managerInfo: UserInfo,
                           operation: TrialOperation,
-                          userEmails: Seq[String]): TrialServiceMessage = operation match {
-    case Enable => TrialService.EnableUsers(managerInfo, userEmails)
-    case Disable => TrialService.DisableUsers(managerInfo, userEmails)
-    case Terminate => TrialService.TerminateUsers(managerInfo, userEmails)
+                          userEmails: Seq[String]): StandardRoute = operation match {
+    case Enable => complete { trialServiceConstructor().EnableUsers(managerInfo, userEmails) }
+    case Disable => complete { trialServiceConstructor().DisableUsers(managerInfo, userEmails) }
+    case Terminate => complete { trialServiceConstructor().TerminateUsers(managerInfo, userEmails) }
   }
 }

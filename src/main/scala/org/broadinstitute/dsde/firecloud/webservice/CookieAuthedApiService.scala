@@ -1,22 +1,27 @@
 package org.broadinstitute.dsde.firecloud.webservice
 
 import akka.actor.Props
+import akka.http.scaladsl.model.headers.OAuth2BearerToken
+import akka.http.scaladsl.server.Route
+import akka.http.scaladsl.server.Directives._
 import com.typesafe.scalalogging.LazyLogging
 import org.broadinstitute.dsde.firecloud.model.UserInfo
 import org.broadinstitute.dsde.firecloud.service._
-import spray.http._
-import spray.routing._
+
+import scala.concurrent.ExecutionContext
+//import spray.http._
+//import spray.routing._
 
 import scala.language.postfixOps
 
 /**
  * Created by dvoet on 11/16/16.
  */
-trait CookieAuthedApiService extends HttpService with PerRequestCreator with FireCloudDirectives with FireCloudRequestBuilding with LazyLogging {
+trait CookieAuthedApiService extends FireCloudDirectives with FireCloudRequestBuilding with LazyLogging {
 
   val exportEntitiesByTypeConstructor: ExportEntitiesByTypeArguments => ExportEntitiesByTypeActor
 
-  private implicit val executionContext = actorRefFactory.dispatcher
+  implicit val executionContext: ExecutionContext
 
   val storageServiceConstructor: UserInfo => StorageService
 
@@ -44,7 +49,7 @@ trait CookieAuthedApiService extends HttpService with PerRequestCreator with Fir
           parameters('attributeNames.?, 'model.?) { (attributeNamesString, modelString) =>
             requestContext =>
               val attributeNames = attributeNamesString.map(_.split(",").toIndexedSeq)
-              val userInfo = dummyUserInfo(tokenCookie.content)
+              val userInfo = dummyUserInfo(tokenCookie.value)
               val exportArgs = ExportEntitiesByTypeArguments(requestContext, userInfo, workspaceNamespace, workspaceName, entityType, attributeNames, modelString)
               val exportProps: Props = ExportEntitiesByTypeActor.props(exportEntitiesByTypeConstructor, exportArgs)
               actorRefFactory.actorOf(exportProps) ! ExportEntitiesByTypeActor.ExportEntities

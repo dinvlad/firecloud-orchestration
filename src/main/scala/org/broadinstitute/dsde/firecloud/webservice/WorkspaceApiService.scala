@@ -3,6 +3,10 @@ package org.broadinstitute.dsde.firecloud.webservice
 import java.text.SimpleDateFormat
 
 import akka.actor.Props
+import akka.http.scaladsl.model.Uri.Query
+import akka.http.scaladsl.model.{HttpMethods, StatusCodes, Uri}
+import akka.http.scaladsl.model.headers.OAuth2BearerToken
+import akka.http.scaladsl.server.{RequestContext, Route}
 import org.broadinstitute.dsde.rawls.model.Attributable.AttributeMap
 import org.broadinstitute.dsde.firecloud.model._
 import org.broadinstitute.dsde.firecloud.model.ModelJsonProtocol._
@@ -15,17 +19,17 @@ import org.broadinstitute.dsde.rawls.model.AttributeUpdateOperations.AttributeUp
 import org.slf4j.{Logger, LoggerFactory}
 import spray.json._
 import spray.json.DefaultJsonProtocol._
-import spray.http._
-import spray.httpx.unmarshalling._
-import spray.httpx.SprayJsonSupport._
-import spray.routing._
+//import spray.http._
+//import spray.httpx.unmarshalling._
+//import spray.httpx.SprayJsonSupport._
+//import spray.routing._
 
 import scala.concurrent.ExecutionContext
 
-trait WorkspaceApiService extends HttpService with FireCloudRequestBuilding
+trait WorkspaceApiService extends FireCloudRequestBuilding
   with FireCloudDirectives with StandardUserInfoDirectives {
 
-  private implicit val ec: ExecutionContext = actorRefFactory.dispatcher
+  implicit val executionContext: ExecutionContext
 
   private final val dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ")
 
@@ -34,7 +38,7 @@ trait WorkspaceApiService extends HttpService with FireCloudRequestBuilding
 
   val workspaceServiceConstructor: WithAccessToken => WorkspaceService
   val permissionReportServiceConstructor: UserInfo => PermissionReportService
-  val entityClientConstructor: (RequestContext, ModelSchema) => EntityClient
+  val entityClientConstructor: (RequestContext, ModelSchema) => EntityClient //todo: get rid of requestcontext?
 
   private val filename = "-workspace-attributes.tsv"
 
@@ -43,12 +47,10 @@ trait WorkspaceApiService extends HttpService with FireCloudRequestBuilding
       path("workspaces" / Segment / Segment / "exportAttributesTSV") {
           (workspaceNamespace, workspaceName) =>
             cookie("FCtoken") { tokenCookie =>
-                mapRequest(r => addCredentials(OAuth2BearerToken(tokenCookie.content)).apply(r)) { requestContext =>
-                    perRequest(requestContext,
-                        WorkspaceService.props(workspaceServiceConstructor, new AccessToken(OAuth2BearerToken(tokenCookie.content))),
-                        WorkspaceService.ExportWorkspaceAttributesTSV(workspaceNamespace, workspaceName, workspaceName + filename))
-                  }
-              }
+                mapRequest(r => addCredentials(OAuth2BearerToken(tokenCookie.value)).apply(r)) {
+                  complete { workspaceServiceConstructor(new AccessToken(OAuth2BearerToken(tokenCookie.value))).ExportWorkspaceAttributesTSV(workspaceNamespace, workspaceName, workspaceName + filename) }
+                }
+            }
         }
     } ~
     path("version" / "executionEngine") {
@@ -58,7 +60,7 @@ trait WorkspaceApiService extends HttpService with FireCloudRequestBuilding
       pathPrefix("workspaces") {
         pathEnd {
           requireUserInfo() { _ =>
-            extract(_.request.uri.query) { query =>
+            extract(_.request.uri.query()) { query =>
               passthrough(Uri(rawlsWorkspacesRoot).withQuery(query), HttpMethods.GET, HttpMethods.POST)
             }
           }
@@ -69,7 +71,7 @@ trait WorkspaceApiService extends HttpService with FireCloudRequestBuilding
               parameter('q.?) { queryString =>
                 val baseUri = Uri(rawlsWorkspacesRoot + "/tags")
                 val uri = queryString match {
-                  case Some(query) => baseUri.withQuery(("q", query))
+                  case Some(query) => baseUri.withQuery(Query(("q", query)))
                   case None => baseUri
                 }
                 passthrough(uri.toString, HttpMethods.GET)
@@ -82,23 +84,20 @@ trait WorkspaceApiService extends HttpService with FireCloudRequestBuilding
           pathEnd {
             get {
               requireUserInfo() { _ =>
-                extract(_.request.uri.query) { query =>
+                extract(_.request.uri.query()) { query =>
                   passthrough(Uri(workspacePath).withQuery(query), HttpMethods.GET)
                 }
               }
             } ~
             delete {
-              requireUserInfo() { userInfo => requestContext =>
-                perRequest(requestContext,
-                  WorkspaceService.props(workspaceServiceConstructor, userInfo),
-                  WorkspaceService.DeleteWorkspace(workspaceNamespace, workspaceName)
-                )
+              requireUserInfo() { userInfo =>
+                complete { workspaceServiceConstructor(userInfo).DeleteWorkspace(workspaceNamespace, workspaceName) }
               }
             }
           } ~
           path("methodconfigs") {
             get {
-              extract(_.request.uri.query) { query =>
+              extract(_.request.uri.query()) { query =>
                 requireUserInfo() { _ =>
                   passthrough(Uri(workspacePath + "/methodconfigs").withQuery(query), HttpMethods.GET)
                 }
@@ -106,11 +105,11 @@ trait WorkspaceApiService extends HttpService with FireCloudRequestBuilding
             } ~
             post {
               requireUserInfo() { _ =>
-                entity(as[MethodConfiguration]) { methodConfig =>
+                entity(as[MethodConfiguration]) { methodConfig => requestContext =>
                     if (!methodConfig.outputs.exists { param => param._2.value.startsWith("this.library:") || param._2.value.startsWith("workspace.library:")})
                       passthrough(workspacePath + "/methodconfigs", HttpMethods.GET, HttpMethods.POST)
                     else
-                      complete(StatusCodes.Forbidden, ErrorReport("Methods and configurations can not create or modify library attributes"))
+                      requestContext.complete(StatusCodes.Forbidden, ErrorReport("Methods and configurations can not create or modify library attributes"))
                 }
               }
             }
@@ -164,8 +163,8 @@ trait WorkspaceApiService extends HttpService with FireCloudRequestBuilding
             } ~
             get {
               requireUserInfo() { _ =>
-                extract(_.request.uri.query) { query =>
-                  passthrough(Uri(encodeUri(s"${FireCloudConfig.ImportService.server}/$workspaceNamespace/$workspaceName/imports")).withQuery(query), HttpMethods.GET)
+                extract(_.request.uri.query()) { query =>
+                  passthrough(Uri(encodeUri(s"${FireCloudConfig.ImportService.server}/$workspaceNamespace/$workspaceName/imports")).withQuery(query()), HttpMethods.GET)
                 }
               }
             }
@@ -180,12 +179,8 @@ trait WorkspaceApiService extends HttpService with FireCloudRequestBuilding
           path("updateAttributes") {
             patch {
               requireUserInfo() { userInfo: UserInfo =>
-                entity(as[Seq[AttributeUpdateOperation]]) { replacementAttributes => requestContext =>
-                  perRequest(requestContext,
-                    WorkspaceService.props(workspaceServiceConstructor, userInfo),
-                    WorkspaceService.UpdateWorkspaceAttributes(workspaceNamespace, workspaceName, replacementAttributes)
-                  )
-
+                entity(as[Seq[AttributeUpdateOperation]]) { replacementAttributes =>
+                  complete { workspaceServiceConstructor(userInfo).UpdateWorkspaceAttributes(workspaceNamespace, workspaceName, replacementAttributes) }
                 }
               }
             }
@@ -194,20 +189,16 @@ trait WorkspaceApiService extends HttpService with FireCloudRequestBuilding
             patch {
               requireUserInfo() { userInfo =>
                 implicit val impAttributeFormat: AttributeFormat = new AttributeFormat with PlainArrayAttributeListSerializer
-                entity(as[AttributeMap]) { newAttributes => requestContext =>
-                  perRequest(requestContext,
-                    WorkspaceService.props(workspaceServiceConstructor, userInfo),
-                    WorkspaceService.SetWorkspaceAttributes(workspaceNamespace, workspaceName, newAttributes))
+                entity(as[AttributeMap]) { newAttributes =>
+                  complete { workspaceServiceConstructor(userInfo).SetWorkspaceAttributes(workspaceNamespace, workspaceName, newAttributes) }
                 }
               }
             }
           } ~
           path("exportAttributesTSV") {
             get {
-              requireUserInfo() { userInfo => requestContext =>
-                perRequest(requestContext,
-                  WorkspaceService.props(workspaceServiceConstructor, userInfo),
-                  WorkspaceService.ExportWorkspaceAttributesTSV(workspaceNamespace, workspaceName, workspaceName + filename))
+              requireUserInfo() { userInfo =>
+                complete { workspaceServiceConstructor(userInfo).ExportWorkspaceAttributesTSV(workspaceNamespace, workspaceName, workspaceName + filename) }
               }
             }
           } ~
@@ -215,10 +206,8 @@ trait WorkspaceApiService extends HttpService with FireCloudRequestBuilding
             post {
               requireUserInfo() { userInfo =>
                 formFields('attributes) { attributesTSV =>
-                  respondWithJSON { requestContext =>
-                    perRequest(requestContext, WorkspaceService.props(workspaceServiceConstructor, userInfo),
-                      WorkspaceService.ImportAttributesFromTSV(workspaceNamespace, workspaceName, attributesTSV)
-                    )
+                  respondWithJSON {
+                    complete { workspaceServiceConstructor(userInfo).ImportAttributesFromTSV(workspaceNamespace, workspaceName, attributesTSV) }
                   }
                 }
               }
@@ -228,10 +217,8 @@ trait WorkspaceApiService extends HttpService with FireCloudRequestBuilding
             patch {
               requireUserInfo() { userInfo =>
                 parameter('inviteUsersNotFound.?) { inviteUsersNotFound =>
-                  entity(as[List[WorkspaceACLUpdate]]) { aclUpdates => requestContext =>
-                    perRequest(requestContext,
-                      WorkspaceService.props(workspaceServiceConstructor, userInfo),
-                      WorkspaceService.UpdateWorkspaceACL(workspaceNamespace, workspaceName, aclUpdates, userInfo.userEmail, userInfo.id, inviteUsersNotFound.getOrElse("false").toBoolean))
+                  entity(as[List[WorkspaceACLUpdate]]) { aclUpdates =>
+                    complete { workspaceServiceConstructor(userInfo).UpdateWorkspaceACL(workspaceNamespace, workspaceName, aclUpdates, userInfo.userEmail, userInfo.id, inviteUsersNotFound.getOrElse("false").toBoolean) }
                   }
                 }
               }
@@ -244,18 +231,14 @@ trait WorkspaceApiService extends HttpService with FireCloudRequestBuilding
           } ~
           path("catalog") {
             get {
-              requireUserInfo() { userInfo => requestContext =>
-                perRequest(requestContext,
-                  WorkspaceService.props(workspaceServiceConstructor, userInfo),
-                  WorkspaceService.GetCatalog(workspaceNamespace, workspaceName, userInfo))
+              requireUserInfo() { userInfo =>
+                complete { workspaceServiceConstructor(userInfo).GetCatalog(workspaceNamespace, workspaceName, userInfo) }
               }
             } ~
             patch {
               requireUserInfo() { userInfo =>
-                entity(as[Seq[WorkspaceCatalog]]) { updates => requestContext =>
-                  perRequest(requestContext,
-                    WorkspaceService.props(workspaceServiceConstructor, userInfo),
-                    WorkspaceService.UpdateCatalog(workspaceNamespace, workspaceName, updates, userInfo))
+                entity(as[Seq[WorkspaceCatalog]]) { updates =>
+                  complete { workspaceServiceConstructor(userInfo).UpdateCatalog(workspaceNamespace, workspaceName, updates, userInfo) }
                 }
               }
             }
@@ -312,39 +295,29 @@ trait WorkspaceApiService extends HttpService with FireCloudRequestBuilding
           } ~
           path("storageCostEstimate") {
             get {
-              requireUserInfo() { userInfo => requestContext =>
-                perRequest(requestContext,
-                  WorkspaceService.props(workspaceServiceConstructor, userInfo),
-                  WorkspaceService.GetStorageCostEstimate(workspaceNamespace, workspaceName))
+              requireUserInfo() { userInfo =>
+                complete { workspaceServiceConstructor(userInfo).GetStorageCostEstimate(workspaceNamespace, workspaceName) }
               }
             }
           } ~
           path("tags") {
             requireUserInfo() { userInfo =>
-              get { requestContext =>
-                perRequest(requestContext,
-                  WorkspaceService.props(workspaceServiceConstructor, userInfo),
-                  WorkspaceService.GetTags(workspaceNamespace, workspaceName))
+              get {
+                complete { workspaceServiceConstructor(userInfo).GetTags(workspaceNamespace, workspaceName) }
               } ~
               put {
-                entity(as[List[String]]) { tags => requestContext =>
-                  perRequest(requestContext,
-                    WorkspaceService.props(workspaceServiceConstructor, userInfo),
-                    WorkspaceService.PutTags(workspaceNamespace, workspaceName, tags))
+                entity(as[List[String]]) { tags =>
+                  complete { workspaceServiceConstructor(userInfo).PutTags(workspaceNamespace, workspaceName, tags) }
                 }
               } ~
               patch {
-                entity(as[List[String]]) { tags => requestContext =>
-                  perRequest(requestContext,
-                    WorkspaceService.props(workspaceServiceConstructor, userInfo),
-                    WorkspaceService.PatchTags(workspaceNamespace, workspaceName, tags))
+                entity(as[List[String]]) { tags =>
+                  complete { workspaceServiceConstructor(userInfo).PatchTags(workspaceNamespace, workspaceName, tags) }
                 }
               } ~
               delete {
-                entity(as[List[String]]) { tags => requestContext =>
-                  perRequest(requestContext,
-                    WorkspaceService.props(workspaceServiceConstructor, userInfo),
-                    WorkspaceService.DeleteTags(workspaceNamespace, workspaceName, tags))
+                entity(as[List[String]]) { tags =>
+                  complete { workspaceServiceConstructor(userInfo).DeleteTags(workspaceNamespace, workspaceName, tags) }
                 }
               }
             }
@@ -353,10 +326,7 @@ trait WorkspaceApiService extends HttpService with FireCloudRequestBuilding
             requireUserInfo() { userInfo =>
               post {
                 entity(as[PermissionReportRequest]) { reportInput =>
-                  requestContext =>
-                    perRequest(requestContext,
-                      PermissionReportService.props(permissionReportServiceConstructor, userInfo),
-                      PermissionReportService.GetPermissionReport(workspaceNamespace, workspaceName, reportInput))
+                  complete { permissionReportServiceConstructor(userInfo).GetPermissionReport(workspaceNamespace, workspaceName, reportInput) }
                 }
               }
             }

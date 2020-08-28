@@ -8,7 +8,6 @@ import org.broadinstitute.dsde.firecloud.model.Trial.{CreateProjectsResponse, Cr
 import org.broadinstitute.dsde.firecloud.model.{AccessToken, WithAccessToken}
 import org.broadinstitute.dsde.firecloud.trial.ProjectManager.{Create, StartCreation, Verify}
 import org.broadinstitute.dsde.rawls.model.RawlsBillingProjectName
-import spray.http.OAuth2BearerToken
 
 import scala.concurrent.duration._
 import scala.util.Try

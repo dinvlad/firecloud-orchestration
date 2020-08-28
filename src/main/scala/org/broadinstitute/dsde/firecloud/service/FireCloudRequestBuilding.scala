@@ -1,16 +1,16 @@
 package org.broadinstitute.dsde.firecloud.service
 
+import akka.http.scaladsl.client.RequestBuilding
+import akka.http.scaladsl.model.HttpRequest
+import akka.http.scaladsl.model.headers.{Authorization, HttpCredentials, OAuth2BearerToken, RawHeader}
+import akka.http.scaladsl.server.RequestContext
 import org.broadinstitute.dsde.firecloud.FireCloudConfig
 import org.broadinstitute.dsde.firecloud.dataaccess.HttpGoogleServicesDAO
 import org.broadinstitute.dsde.firecloud.model.WithAccessToken
-import spray.http.HttpHeaders.Authorization
-import spray.http._
-import spray.routing.RequestContext
 
+trait FireCloudRequestBuilding extends RequestBuilding {
 
-trait FireCloudRequestBuilding extends spray.httpx.RequestBuilding {
-
-  val fireCloudHeader = HttpHeaders.RawHeader("X-FireCloud-Id", FireCloudConfig.FireCloud.fireCloudId)
+  val fireCloudHeader = RawHeader("X-FireCloud-Id", FireCloudConfig.FireCloud.fireCloudId)
 
   // TODO: would be much better to make requestContext implicit, so callers don't have to always pass it in
   // TODO: this could probably be rewritten more tersely in idiomatic scala - for instance, don't create

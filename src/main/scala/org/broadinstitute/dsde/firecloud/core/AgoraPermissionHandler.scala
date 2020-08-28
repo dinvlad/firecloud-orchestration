@@ -2,6 +2,7 @@ package org.broadinstitute.dsde.firecloud.core
 
 import akka.actor.{Actor, Props}
 import akka.event.Logging
+import akka.http.scaladsl.model.StatusCodes
 import akka.pattern.pipe
 import org.broadinstitute.dsde.firecloud.model.MethodRepository.{AgoraPermission, EntityAccessControlAgora, FireCloudPermission, MethodAclPair}
 import org.broadinstitute.dsde.firecloud.model.MethodRepository.ACLNames._
@@ -11,12 +12,12 @@ import org.broadinstitute.dsde.firecloud.service.FireCloudRequestBuilding
 import org.broadinstitute.dsde.firecloud.service.PerRequest.{PerRequestMessage, RequestComplete}
 import org.broadinstitute.dsde.firecloud.webservice.MethodsApiServiceUrls
 import org.broadinstitute.dsde.rawls.model.MethodRepoMethod
-import spray.client.pipelining._
-import spray.http.StatusCodes._
-import spray.http.{HttpResponse, StatusCodes}
-import spray.httpx.SprayJsonSupport._
+//import spray.client.pipelining._
+//import spray.http.StatusCodes._
+//import spray.http.{HttpResponse, StatusCodes}
+//import spray.httpx.SprayJsonSupport._
 import spray.json.DefaultJsonProtocol._
-import spray.routing.RequestContext
+//import spray.routing.RequestContext
 
 import scala.concurrent.Future
 
@@ -24,7 +25,6 @@ object AgoraPermissionHandler {
   case class Get(url: String)
   case class Post(url: String, agoraPermissions: List[AgoraPermission])
   case class MultiUpsert(inputs: List[EntityAccessControlAgora])
-  def props(requestContext: RequestContext): Props = Props(new GetEntitiesWithTypeActor(requestContext))
 
   // convenience method to translate a FireCloudPermission object to an AgoraPermission object
   def toAgoraPermission(fireCloudPermission: FireCloudPermission):AgoraPermission = {
@@ -74,18 +74,11 @@ class AgoraPermissionActor (requestContext: RequestContext) extends Actor
   import spray.json.DefaultJsonProtocol._
 
   val log = Logging(system, getClass)
-  val pipeline = authHeaders(requestContext) ~> sendReceive
+//  val pipeline = authHeaders(requestContext) ~> sendReceive
 
-  def receive = {
-    case AgoraPermissionHandler.Get(url: String) =>
-      createAgoraResponse(pipeline { Get(url) }) pipeTo context.parent
-    case AgoraPermissionHandler.Post(url: String, agoraPermissions: List[AgoraPermission]) =>
-      createAgoraResponse(pipeline { Post(url, agoraPermissions) }) pipeTo context.parent
-    case AgoraPermissionHandler.MultiUpsert(inputs: List[EntityAccessControlAgora]) =>
-      multiUpsert(inputs) pipeTo context.parent
-    case _ =>
-      Future(RequestComplete(StatusCodes.BadRequest)) pipeTo context.parent
-  }
+  def GetMethod(url: String) = createAgoraResponse(pipeline { Get(url) })
+  def PostMethod(url: String, agoraPermissions: List[AgoraPermission]) = createAgoraResponse(pipeline { Post(url, agoraPermissions) })
+  def MultiUpsert(inputs: List[EntityAccessControlAgora]) = multiUpsert(inputs)
 
   def createAgoraResponse(permissionListFuture: Future[HttpResponse]): Future[PerRequestMessage] = {
     permissionListFuture.map {response =>

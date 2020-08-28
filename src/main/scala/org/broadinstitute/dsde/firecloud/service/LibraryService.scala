@@ -1,7 +1,7 @@
 package org.broadinstitute.dsde.firecloud.service
 
-import akka.actor.{Actor, Props}
-import akka.pattern._
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
+import akka.http.scaladsl.model.StatusCodes._
 import com.typesafe.scalalogging.LazyLogging
 import org.broadinstitute.dsde.firecloud.{Application, FireCloudConfig, FireCloudException}
 import org.broadinstitute.dsde.firecloud.dataaccess._
@@ -14,8 +14,6 @@ import org.everit.json.schema.ValidationException
 import org.slf4j.LoggerFactory
 import spray.json._
 import spray.json.DefaultJsonProtocol._
-import spray.http.StatusCodes._
-import spray.httpx.SprayJsonSupport
 import spray.json.JsonParser.ParsingException
 import org.broadinstitute.dsde.firecloud.model.ModelJsonProtocol.{impLibraryBulkIndexResponse, impLibrarySearchResponse}
 import org.broadinstitute.dsde.firecloud.model.SamResource.UserPolicy
@@ -32,21 +30,6 @@ object LibraryService {
   final val orspIdAttribute = AttributeName.withLibraryNS("orsp")
   final val schemaLocation = "library/attribute-definitions.json"
 
-  sealed trait LibraryServiceMessage
-  case class UpdateLibraryMetadata(ns: String, name: String, attrsJsonString: String, validate: Boolean) extends LibraryServiceMessage
-  case class GetLibraryMetadata(ns: String, name: String) extends LibraryServiceMessage
-  case class UpdateDiscoverableByGroups(ns: String, name: String, newGroups: Seq[String]) extends LibraryServiceMessage
-  case class GetDiscoverableByGroups(ns: String, name: String) extends LibraryServiceMessage
-  case class SetPublishAttribute(ns: String, name: String, value: Boolean) extends LibraryServiceMessage
-  case object IndexAll extends LibraryServiceMessage
-  case class FindDocuments(criteria: LibrarySearchParams) extends LibraryServiceMessage
-  case class Suggest(criteria: LibrarySearchParams) extends LibraryServiceMessage
-  case class PopulateSuggest(field: String, text: String) extends LibraryServiceMessage
-
-  def props(libraryServiceConstructor: UserInfo => LibraryService, userInfo: UserInfo): Props = {
-    Props(libraryServiceConstructor(userInfo))
-  }
-
   def constructor(app: Application)(userInfo: UserInfo)(implicit executionContext: ExecutionContext) =
     new LibraryService(userInfo, app.rawlsDAO, app.samDAO, app.searchDAO, app.ontologyDAO, app.consentDAO)
 }
@@ -58,8 +41,7 @@ class LibraryService (protected val argUserInfo: UserInfo,
                       val searchDAO: SearchDAO,
                       val ontologyDAO: OntologyDAO,
                       val consentDAO: ConsentDAO)
-                     (implicit protected val executionContext: ExecutionContext) extends Actor
-  with LibraryServiceSupport with AttributeSupport with PermissionsSupport with SprayJsonSupport with LazyLogging with WorkspacePublishingSupport {
+                     (implicit protected val executionContext: ExecutionContext) extends LibraryServiceSupport with AttributeSupport with PermissionsSupport with SprayJsonSupport with LazyLogging with WorkspacePublishingSupport {
 
   lazy val log = LoggerFactory.getLogger(getClass)
 
@@ -69,18 +51,15 @@ class LibraryService (protected val argUserInfo: UserInfo,
   // we need to use the plain-array deserialization.
   implicit val impAttributeFormat: AttributeFormat = new AttributeFormat with PlainArrayAttributeListSerializer
 
-  override def receive = {
-    case UpdateLibraryMetadata(ns: String, name: String, attrsJsonString: String, validate: Boolean) => updateLibraryMetadata(ns, name, attrsJsonString, validate) pipeTo sender
-    case GetLibraryMetadata(ns: String, name: String) => getLibraryMetadata(ns, name) pipeTo sender
-    case UpdateDiscoverableByGroups(ns: String, name: String, newGroups: Seq[String]) => updateDiscoverableByGroups(ns, name, newGroups) pipeTo sender
-    case GetDiscoverableByGroups(ns: String, name: String) => getDiscoverableByGroups(ns, name) pipeTo sender
-    case SetPublishAttribute(ns: String, name: String, value: Boolean) => setWorkspaceIsPublished(ns, name, value) pipeTo sender
-    case IndexAll => asAdmin {indexAll} pipeTo sender
-    case FindDocuments(criteria: LibrarySearchParams) => findDocuments(criteria) pipeTo sender
-    case Suggest(criteria: LibrarySearchParams) => suggest(criteria) pipeTo sender
-    case PopulateSuggest(field: String, text: String) => populateSuggest(field: String, text: String) pipeTo sender
-  }
-
+  def UpdateLibraryMetadata(ns: String, name: String, attrsJsonString: String, validate: Boolean) = updateLibraryMetadata(ns, name, attrsJsonString, validate)
+  def GetLibraryMetadata(ns: String, name: String) = getLibraryMetadata(ns, name)
+  def UpdateDiscoverableByGroups(ns: String, name: String, newGroups: Seq[String]) = updateDiscoverableByGroups(ns, name, newGroups)
+  def GetDiscoverableByGroups(ns: String, name: String) = getDiscoverableByGroups(ns, name)
+  def SetPublishAttribute(ns: String, name: String, value: Boolean) = setWorkspaceIsPublished(ns, name, value)
+  def IndexAll = asAdmin {indexAll}
+  def FindDocuments(criteria: LibrarySearchParams) = findDocuments(criteria)
+  def Suggest(criteria: LibrarySearchParams) = suggest(criteria)
+  def PopulateSuggest(field: String, text: String) = populateSuggest(field: String, text: String)
 
   def updateDiscoverableByGroups(ns: String, name: String, newGroups: Seq[String]): Future[PerRequestMessage] = {
     if (newGroups.forall { g => FireCloudConfig.ElasticSearch.discoverGroupNames.contains(g) }) {
