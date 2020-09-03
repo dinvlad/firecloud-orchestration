@@ -1,23 +1,23 @@
 package org.broadinstitute.dsde.firecloud.service
 
+import akka.http.scaladsl.model.HttpMethods
+import akka.http.scaladsl.server.Route
 import org.broadinstitute.dsde.firecloud.FireCloudConfig
-import spray.http.HttpMethods._
-import spray.routing._
 
-trait BillingService extends HttpService with PerRequestCreator with FireCloudDirectives {
+trait BillingService extends FireCloudDirectives {
   private val billingUrl = FireCloudConfig.Rawls.authUrl + "/billing"
   
   val routes: Route =
     pathPrefix("billing") {
       pathEnd {
         post {
-          passthrough(billingUrl, POST)
+          passthrough(billingUrl, HttpMethods.POST)
         }
       } ~
       pathPrefix(Segment) { projectId =>
         path("members") {
           get {
-            passthrough(s"$billingUrl/$projectId/members", GET)
+            passthrough(s"$billingUrl/$projectId/members", HttpMethods.GET)
           }
         } ~
           path("googleRole" / Segment / Segment) { (googleRole, email) =>

@@ -4,6 +4,8 @@ import java.io
 import java.io.FileInputStream
 
 import akka.actor.ActorRefFactory
+import akka.http.scaladsl.model.headers.OAuth2BearerToken
+import akka.http.scaladsl.model.{HttpRequest, HttpResponse, StatusCodes, Uri}
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport
 import com.google.api.client.googleapis.json.GoogleJsonResponseException
 import com.google.api.client.googleapis.services.AbstractGoogleClientRequest
@@ -31,14 +33,14 @@ import org.broadinstitute.dsde.firecloud.service.PerRequest.{PerRequestMessage, 
 import org.broadinstitute.dsde.firecloud.{EntityClient, FireCloudConfig, FireCloudException, FireCloudExceptionWithErrorReport}
 import org.broadinstitute.dsde.rawls.model.ErrorReport
 import org.broadinstitute.dsde.workbench.util.health.SubsystemStatus
-import spray.client.pipelining._
-import spray.http.StatusCodes._
-import spray.http._
-import spray.httpx.SprayJsonSupport._
-import spray.httpx.UnsuccessfulResponseException
-import spray.httpx.encoding.Gzip
+//import spray.client.pipelining._
+//import spray.http.StatusCodes._
+//import spray.http._
+//import spray.httpx.SprayJsonSupport._
+//import spray.httpx.UnsuccessfulResponseException
+//import spray.httpx.encoding.Gzip
 import spray.json._
-import spray.routing.RequestContext
+//import spray.routing.RequestContext
 
 import scala.collection.JavaConversions._
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -392,11 +394,11 @@ object HttpGoogleServicesDAO extends GoogleServicesDAO with FireCloudRequestBuil
                   // now make a final request to see if our service account has access, so it can sign a URL
                   objectAccessCheck(bucketName, objectKey, AccessToken(getRawlsServiceAccountAccessToken)) map { serviceAccountResponse =>
                     serviceAccountResponse.status match {
-                      case OK =>
+                      case StatusCodes.OK =>
                         // the service account can read the object too. We are safe to sign a url.
                         logger.info(s"$userStr download via signed URL allowed for [$objectStr]")
                         val redirectUrl = getSignedUrl(bucketName, objectKey)
-                        RequestCompleteWithHeaders(StatusCodes.TemporaryRedirect, HttpHeaders.Location(Uri(redirectUrl)))
+                        RequestCompleteWithHeaders(StatusCodes.TemporaryRedirect, Headers.Location(Uri(redirectUrl)))
                       case _ =>
                         // the service account cannot read the object, even though the user can. We cannot
                         // make a signed url, because the service account won't have permission to sign it.
@@ -422,7 +424,7 @@ object HttpGoogleServicesDAO extends GoogleServicesDAO with FireCloudRequestBuil
         case _ =>
           // Google did not return a profile for this user; abort. Reloading will resolve the issue if it's caused by an expired token.
           logger.warn(s"Unknown user attempted download for [$objectStr] and was denied. User info (${userResponse.status}): ${userResponse.entity.asString}")
-          Future(RequestComplete((Unauthorized, "There was a problem authorizing your download. Please reload FireCloud and try again.")))
+          Future(RequestComplete((StatusCodes.Unauthorized, "There was a problem authorizing your download. Please reload FireCloud and try again.")))
       }
     }
   }

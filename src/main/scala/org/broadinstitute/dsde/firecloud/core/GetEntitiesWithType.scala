@@ -2,6 +2,7 @@ package org.broadinstitute.dsde.firecloud.core
 
 import akka.actor.{Actor, Props}
 import akka.event.Logging
+import akka.http.scaladsl.server.RequestContext
 import akka.pattern.pipe
 import org.broadinstitute.dsde.firecloud.core.GetEntitiesWithType.ProcessUrl
 import org.broadinstitute.dsde.firecloud.model.ModelJsonProtocol._
@@ -11,16 +12,16 @@ import org.broadinstitute.dsde.firecloud.model.ErrorReportExtensions._
 import org.broadinstitute.dsde.firecloud.service.{FireCloudDirectiveUtils, FireCloudRequestBuilding}
 import org.broadinstitute.dsde.firecloud.service.PerRequest.{PerRequestMessage, RequestComplete}
 import org.broadinstitute.dsde.rawls.model.Entity
-import spray.client.pipelining._
-import spray.http.HttpEncodings._
-import spray.http.HttpHeaders.`Accept-Encoding`
-import spray.http.HttpResponse
-import spray.http.StatusCodes._
-import spray.httpx.SprayJsonSupport._
-import spray.httpx.encoding.Gzip
+//import spray.client.pipelining._
+//import spray.http.HttpEncodings._
+//import spray.http.HttpHeaders.`Accept-Encoding`
+//import spray.http.HttpResponse
+//import spray.http.StatusCodes._
+//import spray.httpx.SprayJsonSupport._
+//import spray.httpx.encoding.Gzip
 import spray.json.DefaultJsonProtocol._
 import spray.json.JsValue
-import spray.routing.RequestContext
+//import spray.routing.RequestContext
 
 import scala.concurrent.Future
 import scala.util.{Failure, Success}

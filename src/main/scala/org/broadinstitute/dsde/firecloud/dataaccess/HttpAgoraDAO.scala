@@ -1,6 +1,7 @@
 package org.broadinstitute.dsde.firecloud.dataaccess
 
 import akka.actor.ActorSystem
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.model.Uri
 import org.broadinstitute.dsde.firecloud.{FireCloudConfig, FireCloudExceptionWithErrorReport}
 import org.broadinstitute.dsde.firecloud.model.MethodRepository.{AgoraEntityType, AgoraPermission, EntityAccessControlAgora, Method}
@@ -10,8 +11,6 @@ import org.broadinstitute.dsde.firecloud.utils.RestJsonClient
 import org.broadinstitute.dsde.workbench.util.health.{StatusCheckResponse, SubsystemStatus}
 import org.broadinstitute.dsde.workbench.util.health.StatusJsonSupport.{StatusCheckResponseFormat, SubsystemStatusFormat}
 import org.broadinstitute.dsde.workbench.util.health.Subsystems.Subsystem
-//import spray.http.Uri
-//import spray.httpx.SprayJsonSupport._
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 
@@ -19,7 +18,7 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
 
 class HttpAgoraDAO(config: FireCloudConfig.Agora.type)(implicit val system: ActorSystem, implicit val executionContext: ExecutionContext)
-  extends AgoraDAO with RestJsonClient {
+  extends AgoraDAO with SprayJsonSupport with RestJsonClient {
 
   private def getNamespaceUrl(ns: String, entity: String): String = {
     s"${config.authUrl}/$entity/$ns/permissions"

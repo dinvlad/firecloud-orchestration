@@ -3,34 +3,27 @@ package org.broadinstitute.dsde.firecloud.service
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 
-import akka.actor.{Actor, ActorRef, Props}
+import akka.actor.ActorRef
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.model.StatusCodes._
 import akka.pattern._
 import akka.util.Timeout
 import com.google.api.client.googleapis.json.GoogleJsonResponseException
-import com.google.api.services.sheets.v4.model.SpreadsheetProperties
 import com.typesafe.scalalogging.LazyLogging
 import org.broadinstitute.dsde.firecloud.dataaccess.{RawlsDAO, SamDAO, ThurloeDAO, _}
-import org.broadinstitute.dsde.firecloud.model.ModelJsonProtocol.{impCreateProjectsResponse, impTrialProject, _}
+import org.broadinstitute.dsde.firecloud.model.ModelJsonProtocol.{impCreateProjectsResponse, impTrialProject}
 import org.broadinstitute.dsde.firecloud.model.Trial.CreationStatuses.CreationStatus
 import org.broadinstitute.dsde.firecloud.model.Trial.StatusUpdate.Attempt
-import org.broadinstitute.dsde.firecloud.model.Trial.TrialStates.{Disabled, Enabled, Enrolled, Terminated}
+import org.broadinstitute.dsde.firecloud.model.Trial.TrialStates.{Disabled, Enrolled, Terminated}
 import org.broadinstitute.dsde.firecloud.model.Trial.{StatusUpdate, TrialStates, UserTrialStatus, _}
 import org.broadinstitute.dsde.firecloud.model.{AccessToken, RequestCompleteWithErrorReport, UserInfo, WithAccessToken, WorkbenchUserInfo, _}
 import org.broadinstitute.dsde.firecloud.service.PerRequest.{PerRequestMessage, RequestComplete}
-import org.broadinstitute.dsde.firecloud.service.TrialService._
 import org.broadinstitute.dsde.firecloud.trial.ProjectManager.StartCreation
 import org.broadinstitute.dsde.firecloud.utils.PermissionsSupport
 import org.broadinstitute.dsde.firecloud.{Application, FireCloudConfig, FireCloudException, FireCloudExceptionWithErrorReport}
 import org.broadinstitute.dsde.rawls.model.{ErrorReport, RawlsBillingProjectName, RawlsUserEmail}
-import spray.http.StatusCodes._
-import spray.http.StatusCodes
-import spray.httpx.SprayJsonSupport
 import spray.json.DefaultJsonProtocol._
-import spray.json.{JsObject, JsString}
-import spray.routing.RequestContext
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}

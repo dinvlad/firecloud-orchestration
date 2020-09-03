@@ -28,7 +28,7 @@ import scala.concurrent.{ExecutionContext, Future}
 /**
   * Created by mbemis on 8/21/17.
   */
-class HttpSamDAO( implicit val system: ActorSystem, implicit val executionContext: ExecutionContext )
+class HttpSamDAO( implicit val system: ActorSystem, val materializer: Materializer, implicit val executionContext: ExecutionContext )
   extends SamDAO with RestJsonClient {
 
   override val http = Http(system)
