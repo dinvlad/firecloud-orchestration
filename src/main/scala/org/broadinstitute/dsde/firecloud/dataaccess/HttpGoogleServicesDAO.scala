@@ -5,6 +5,7 @@ import java.io.FileInputStream
 
 import akka.actor.ActorRefFactory
 import akka.http.scaladsl.model.headers.OAuth2BearerToken
+import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse, StatusCodes, Uri}
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport
 import com.google.api.client.googleapis.json.GoogleJsonResponseException

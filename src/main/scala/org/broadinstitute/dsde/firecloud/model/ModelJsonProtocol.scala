@@ -1,6 +1,6 @@
 package org.broadinstitute.dsde.firecloud.model
 
-import akka.http.scaladsl.model.StatusCode
+import akka.http.scaladsl.model.{StatusCode, StatusCodes}
 import akka.http.scaladsl.server.MalformedRequestContentRejection
 import org.broadinstitute.dsde.firecloud.model.DUOS._
 import org.broadinstitute.dsde.firecloud.model.DataUse._

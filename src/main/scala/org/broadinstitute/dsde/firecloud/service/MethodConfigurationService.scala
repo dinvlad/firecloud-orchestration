@@ -1,6 +1,7 @@
 package org.broadinstitute.dsde.firecloud.service
 
 import akka.actor.Actor
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.model.HttpMethods
 import akka.http.scaladsl.server.Route
 import org.broadinstitute.dsde.firecloud.FireCloudConfig
@@ -47,12 +48,12 @@ object MethodConfigurationService {
 
 }
 
-trait MethodConfigurationService extends FireCloudDirectives {
+trait MethodConfigurationService extends FireCloudDirectives with SprayJsonSupport {
 
   private final val ApiPrefix = "workspaces"
   lazy val log = LoggerFactory.getLogger(getClass)
 
-  val routes: Route =
+  val methodConfigurationRoutes: Route =
     path("template") {
       passthrough(MethodConfigurationService.remoteTemplateURL, HttpMethods.POST)
     } ~

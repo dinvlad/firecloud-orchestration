@@ -28,6 +28,8 @@ object Dependencies {
     "com.getsentry.raven"            % "raven-logback"       % "7.8.6",
     "com.typesafe.scala-logging"    %% "scala-logging"       % "3.7.2",
 
+    "org.parboiled" % "parboiled-core" % "1.2.0",
+
 //    "org.broadinstitute.dsde.vault" %% "vault-common"        % "0.1-19-ca8b927"
 //      exclude("io.spray", "spray-routing_2.11"),
     excludeGuava("org.broadinstitute.dsde"       %% "rawls-model"         % "0.1-b9d04a47")

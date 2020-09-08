@@ -1,6 +1,8 @@
 package org.broadinstitute.dsde.firecloud.service
 
 import akka.actor.Props
+import akka.http.scaladsl.model.HttpMethods
+import akka.http.scaladsl.server.Route
 import org.broadinstitute.dsde.firecloud.core._
 import org.broadinstitute.dsde.firecloud.model.ModelJsonProtocol._
 import org.broadinstitute.dsde.firecloud.model._
@@ -8,16 +10,18 @@ import org.broadinstitute.dsde.rawls.model.{EntityCopyDefinition, WorkspaceName}
 import org.broadinstitute.dsde.firecloud.FireCloudConfig
 import org.broadinstitute.dsde.firecloud.utils.StandardUserInfoDirectives
 import org.slf4j.LoggerFactory
-import spray.http.{HttpMethods, Uri}
-import spray.httpx.SprayJsonSupport._
-import spray.routing._
+
+import scala.concurrent.ExecutionContext
+//import spray.http.{HttpMethods, Uri}
+//import spray.httpx.SprayJsonSupport._
+//import spray.routing._
 
 import scala.util.Try
 
-trait EntityService extends HttpService with PerRequestCreator with FireCloudDirectives
+trait EntityService extends FireCloudDirectives
   with FireCloudRequestBuilding with StandardUserInfoDirectives {
 
-  private implicit val executionContext = actorRefFactory.dispatcher
+  implicit val executionContext: ExecutionContext
   lazy val log = LoggerFactory.getLogger(getClass)
 
   def entityRoutes: Route =

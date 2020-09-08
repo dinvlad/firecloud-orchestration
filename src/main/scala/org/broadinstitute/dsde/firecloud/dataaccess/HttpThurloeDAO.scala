@@ -1,7 +1,11 @@
 package org.broadinstitute.dsde.firecloud.dataaccess
 
 import akka.actor.ActorSystem
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
+import akka.http.scaladsl.model.Uri.Query
 import akka.http.scaladsl.model.{StatusCodes, Uri}
+import akka.http.scaladsl.unmarshalling.Unmarshal
+import akka.http.scaladsl.unmarshalling._
 import org.broadinstitute.dsde.firecloud.model.ModelJsonProtocol._
 import org.broadinstitute.dsde.firecloud.model.Trial.UserTrialStatus
 import org.broadinstitute.dsde.firecloud.model._
@@ -21,7 +25,7 @@ import scala.util.Try
  * Created by mbemis on 10/21/16.
  */
 class HttpThurloeDAO ( implicit val system: ActorSystem, implicit val executionContext: ExecutionContext )
-  extends ThurloeDAO with RestJsonClient {
+  extends ThurloeDAO with RestJsonClient with SprayJsonSupport {
 
 
   override def getAllKVPs(forUserId: String, callerToken: WithAccessToken): Future[Option[ProfileWrapper]] = {
@@ -39,9 +43,9 @@ class HttpThurloeDAO ( implicit val system: ActorSystem, implicit val executionC
   }
 
   override def getAllUserValuesForKey(key: String): Future[Map[String, String]] = {
-    val queryUri = Uri(UserApiService.remoteGetQueryURL).withQuery(Map("key"->key))
+    val queryUri = Uri(UserApiService.remoteGetQueryURL).withQuery(Query(("key"->key)))
     wrapExceptions {
-      adminAuthedRequest(Get(queryUri), false, true, label = Some("HttpThurloeDAO.getAllUserValuesForKey")).map(unmarshal[Seq[ThurloeKeyValue]]).map { tkvs =>
+      adminAuthedRequest(Get(queryUri), false, true, label = Some("HttpThurloeDAO.getAllUserValuesForKey")).map(x => Unmarshal(x).to[Seq[ThurloeKeyValue]]).map { tkvs =>
         val resultOptions = tkvs.map { tkv => (tkv.userId, tkv.keyValuePair.flatMap { kvp => kvp.value }) }
         val actualResultsOnly = resultOptions collect { case (Some(firecloudSubjId), Some(thurloeValue)) => (firecloudSubjId, thurloeValue) }
         actualResultsOnly.toMap
@@ -125,7 +129,7 @@ class HttpThurloeDAO ( implicit val system: ActorSystem, implicit val executionC
 
     val allQueryParams = keyParams ++ userIdParams
 
-    val queryUri = Uri(UserApiService.remoteGetQueryURL).withQuery(allQueryParams:_*)
+    val queryUri = Uri(UserApiService.remoteGetQueryURL).withQuery(Query(allQueryParams.toMap))
 
     // default uri length for Spray - which Thurloe uses - is 2048 chars
     assert(queryUri.toString().length <  2048, s"generated url is too long at ${queryUri.toString().length} chars.")
@@ -135,7 +139,7 @@ class HttpThurloeDAO ( implicit val system: ActorSystem, implicit val executionC
     req map { response =>
       response.status match {
         case StatusCodes.OK =>
-          val profileKVPs:List[ProfileKVP] = unmarshal[List[ProfileKVP]].apply(response)
+          val profileKVPs:List[ProfileKVP] = Unmarshal(response).to[List[ProfileKVP]]
           val groupedByUser:Map[String, List[ProfileKVP]] = profileKVPs.groupBy(_.userId)
           groupedByUser.map{
             case(userId:String, kvps:List[ProfileKVP]) => ProfileWrapper(userId, kvps.map(_.keyValuePair))

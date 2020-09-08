@@ -1,5 +1,6 @@
 package org.broadinstitute.dsde.firecloud.service
 
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.model.StatusCodes
 import com.typesafe.scalalogging.LazyLogging
 import org.broadinstitute.dsde.firecloud.dataaccess._
@@ -9,6 +10,7 @@ import org.broadinstitute.dsde.firecloud.service.PerRequest.{PerRequestMessage, 
 import org.broadinstitute.dsde.firecloud.{Application, FireCloudConfig, FireCloudExceptionWithErrorReport}
 import org.broadinstitute.dsde.rawls.model.Notifications.{ActivationNotification, NotificationFormat}
 import org.broadinstitute.dsde.rawls.model.{ErrorReport, RawlsUserSubjectId}
+import spray.json.DefaultJsonProtocol
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -19,7 +21,7 @@ object RegisterService {
 }
 
 class RegisterService(val rawlsDao: RawlsDAO, val samDao: SamDAO, val thurloeDao: ThurloeDAO, val trialDao: TrialDAO, val googleServicesDAO: GoogleServicesDAO)
-  (implicit protected val executionContext: ExecutionContext) extends TrialServiceSupport with LazyLogging {
+  (implicit protected val executionContext: ExecutionContext) extends TrialServiceSupport with LazyLogging  with SprayJsonSupport with DefaultJsonProtocol {
 
   def CreateUpdateProfile(userInfo: UserInfo, basicProfile: BasicProfile) = createUpdateProfile(userInfo, basicProfile)
   def UpdateProfilePreferences(userInfo: UserInfo, preferences: Map[String, String]) = updateProfilePreferences(userInfo, preferences)
@@ -44,7 +46,7 @@ class RegisterService(val rawlsDao: RawlsDAO, val samDao: SamDAO, val thurloeDao
 
   private def isRegistered(userInfo: UserInfo): Future[RegistrationInfo] = {
     samDao.getRegistrationStatus(userInfo) recover {
-      case e: FireCloudExceptionWithErrorReport if optAkka2sprayStatus(e.errorReport.statusCode) == Option(StatusCodes.NotFound) =>
+      case e: FireCloudExceptionWithErrorReport if e.errorReport.statusCode == Option(StatusCodes.NotFound) =>
         RegistrationInfo(WorkbenchUserInfo(userInfo.id, userInfo.userEmail), WorkbenchEnabled(false, false, false))
     }
   }

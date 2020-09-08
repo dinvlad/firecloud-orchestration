@@ -3,6 +3,7 @@ package org.broadinstitute.dsde.firecloud.core
 import akka.actor.{Actor, Props}
 import akka.event.Logging
 import akka.http.scaladsl.server.RequestContext
+import akka.http.scaladsl.model.StatusCodes._
 import akka.pattern.pipe
 import org.broadinstitute.dsde.firecloud.core.GetEntitiesWithType.ProcessUrl
 import org.broadinstitute.dsde.firecloud.model.ModelJsonProtocol._

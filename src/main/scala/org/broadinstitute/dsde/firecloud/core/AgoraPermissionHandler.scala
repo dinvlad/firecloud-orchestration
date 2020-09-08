@@ -2,6 +2,7 @@ package org.broadinstitute.dsde.firecloud.core
 
 import akka.actor.{Actor, Props}
 import akka.event.Logging
+import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.model.StatusCodes
 import akka.pattern.pipe
 import org.broadinstitute.dsde.firecloud.model.MethodRepository.{AgoraPermission, EntityAccessControlAgora, FireCloudPermission, MethodAclPair}
