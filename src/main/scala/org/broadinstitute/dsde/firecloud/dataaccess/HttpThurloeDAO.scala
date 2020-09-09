@@ -6,6 +6,7 @@ import akka.http.scaladsl.model.Uri.Query
 import akka.http.scaladsl.model.{StatusCodes, Uri}
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.http.scaladsl.unmarshalling._
+import akka.stream.Materializer
 import org.broadinstitute.dsde.firecloud.model.ModelJsonProtocol._
 import org.broadinstitute.dsde.firecloud.model.Trial.UserTrialStatus
 import org.broadinstitute.dsde.firecloud.model._
@@ -27,15 +28,16 @@ import scala.util.Try
 class HttpThurloeDAO ( implicit val system: ActorSystem, implicit val executionContext: ExecutionContext )
   extends ThurloeDAO with RestJsonClient with SprayJsonSupport {
 
+  implicit val materializer: Materializer
 
   override def getAllKVPs(forUserId: String, callerToken: WithAccessToken): Future[Option[ProfileWrapper]] = {
     wrapExceptions {
       val req = userAuthedRequest(Get(UserApiService.remoteGetAllURL.format(forUserId)), useFireCloudHeader = true, label = Some("HttpThurloeDAO.getAllKVPs"))(callerToken)
 
-      req map { response =>
+      req flatMap { response =>
         response.status match {
-          case StatusCodes.OK => Some(unmarshal[ProfileWrapper].apply(response))
-          case StatusCodes.NotFound => None
+          case StatusCodes.OK => Unmarshal(response).to[ProfileWrapper].map(Option(_))
+          case StatusCodes.NotFound => Future.successful(None)
           case _ => throw new FireCloudException("Unable to get user KVPs from profile service")
         }
       }
@@ -45,7 +47,7 @@ class HttpThurloeDAO ( implicit val system: ActorSystem, implicit val executionC
   override def getAllUserValuesForKey(key: String): Future[Map[String, String]] = {
     val queryUri = Uri(UserApiService.remoteGetQueryURL).withQuery(Query(("key"->key)))
     wrapExceptions {
-      adminAuthedRequest(Get(queryUri), false, true, label = Some("HttpThurloeDAO.getAllUserValuesForKey")).map(x => Unmarshal(x).to[Seq[ThurloeKeyValue]]).map { tkvs =>
+      adminAuthedRequest(Get(queryUri), false, true, label = Some("HttpThurloeDAO.getAllUserValuesForKey")).flatMap(x => Unmarshal(x).to[Seq[ThurloeKeyValue]]).map { tkvs =>
         val resultOptions = tkvs.map { tkv => (tkv.userId, tkv.keyValuePair.flatMap { kvp => kvp.value }) }
         val actualResultsOnly = resultOptions collect { case (Some(firecloudSubjId), Some(thurloeValue)) => (firecloudSubjId, thurloeValue) }
         actualResultsOnly.toMap
@@ -139,11 +141,14 @@ class HttpThurloeDAO ( implicit val system: ActorSystem, implicit val executionC
     req map { response =>
       response.status match {
         case StatusCodes.OK =>
-          val profileKVPs:List[ProfileKVP] = Unmarshal(response).to[List[ProfileKVP]]
-          val groupedByUser:Map[String, List[ProfileKVP]] = profileKVPs.groupBy(_.userId)
-          groupedByUser.map{
+          //todo: rewrite as a for-comp?
+          val profileKVPs:Future[List[ProfileKVP]] = Unmarshal(response).to[List[ProfileKVP]]
+          val groupedByUser:Future[Map[String, List[ProfileKVP]]] = profileKVPs.map(x => x.groupBy(_.userId))
+          val x = groupedByUser.map{
             case(userId:String, kvps:List[ProfileKVP]) => ProfileWrapper(userId, kvps.map(_.keyValuePair))
-          }.toList
+          }
+
+          x
 
         case _ => throw new FireCloudException(s"Unable to execute bulkUserQuery from profile service: ${response.status} $response")
       }
