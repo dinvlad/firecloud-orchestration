@@ -35,7 +35,7 @@ object ErrorReportExtensions {
   }
 }
 
-object RequestCompleteWithErrorReport {
+object RequestCompleteWithErrorReport extends SprayJsonSupport {
 
   def apply(statusCode: StatusCode, message: String) =
     RequestComplete(statusCode, ErrorReport(statusCode, message))

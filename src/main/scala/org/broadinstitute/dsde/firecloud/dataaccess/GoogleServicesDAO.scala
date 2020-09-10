@@ -22,9 +22,6 @@ trait GoogleServicesDAO extends ReportsSubsystemStatus {
   implicit val errorReportSource = ErrorReportSource(GoogleServicesDAO.serviceName)
 
   def getAdminUserAccessToken: String
-  def getTrialBillingManagerAccessToken: String
-  def getTrialBillingManagerEmail: String
-  def getTrialSpreadsheetAccessToken: String
   def getBucketObjectAsInputStream(bucketName: String, objectKey: String): InputStream
   def getObjectResourceUrl(bucketName: String, objectKey: String): String
   def getUserProfile(accessToken: WithAccessToken)
@@ -38,9 +35,6 @@ trait GoogleServicesDAO extends ReportsSubsystemStatus {
   def getObjectContentsAsRawlsSA(bucketName: String, objectKey: String): String
 
   def fetchPriceList(implicit actorRefFactory: ActorRefFactory, executionContext: ExecutionContext): Future[GooglePriceList]
-  def updateSpreadsheet(spreadsheetId: String, content: ValueRange): JsObject
-
-  def trialBillingManagerRemoveBillingAccount(projectName: String, targetUserEmail: String): Boolean
 
   def deleteGoogleGroup(groupEmail: String) : Unit
   def createGoogleGroup(groupName: String): Option[String]

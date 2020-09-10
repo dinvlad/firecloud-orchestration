@@ -1,6 +1,7 @@
 package org.broadinstitute.dsde.firecloud.dataaccess
 
 import akka.actor.ActorSystem
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model.Uri.Query
 import akka.http.scaladsl.model.{StatusCodes, Uri}
@@ -9,9 +10,9 @@ import org.broadinstitute.dsde.firecloud.model.MethodRepository.AgoraConfigurati
 import org.broadinstitute.dsde.firecloud.model.Metrics.AdminStats
 import org.broadinstitute.dsde.firecloud.model.MetricsFormat.AdminStatsFormat
 import org.broadinstitute.dsde.firecloud.model.ModelJsonProtocol.{impRawlsBillingProjectMember, _}
-import org.broadinstitute.dsde.firecloud.model.Trial.ProjectRoles.ProjectRole
-import org.broadinstitute.dsde.firecloud.model.Trial.{CreateRawlsBillingProjectFullRequest, RawlsBillingProjectMember, RawlsBillingProjectMembership}
 import org.broadinstitute.dsde.firecloud.model._
+import org.broadinstitute.dsde.firecloud.model.Trial.ProjectRoles.ProjectRole
+import org.broadinstitute.dsde.firecloud.model.Trial._
 import org.broadinstitute.dsde.firecloud.utils.RestJsonClient
 import org.broadinstitute.dsde.firecloud.{FireCloudConfig, FireCloudExceptionWithErrorReport}
 import org.broadinstitute.dsde.rawls.model.AttributeUpdateOperations._
@@ -31,7 +32,7 @@ import scala.util.control.NonFatal
   * Created by davidan on 9/23/16.
   */
 class HttpRawlsDAO(implicit val system: ActorSystem, implicit val executionContext: ExecutionContext)
-  extends RawlsDAO with RestJsonClient {
+  extends RawlsDAO with RestJsonClient with SprayJsonSupport {
 
   override def isAdmin(userInfo: UserInfo): Future[Boolean] = {
     userAuthedRequest(Get(rawlsAdminUrl))(userInfo) map { response =>
@@ -147,13 +148,6 @@ class HttpRawlsDAO(implicit val system: ActorSystem, implicit val executionConte
   // If we ever need to getAllMethodConfigs, that's Uri(rawlsWorkspaceMethodConfigsUrl.format(ns, name)).withQuery("allRepos" -> "true")
   override def getAgoraMethodConfigs(ns: String, name: String)(implicit userToken: WithAccessToken): Future[Seq[AgoraConfigurationShort]] = {
     authedRequestToObject[Seq[AgoraConfigurationShort]](Get(rawlsWorkspaceMethodConfigsUrl(ns, name)), true)
-  }
-
-  override def createProject(projectName: String, billingAccount: String)(implicit userToken: WithAccessToken): Future[Boolean] = {
-    val create = CreateRawlsBillingProjectFullRequest(projectName, billingAccount)
-    userAuthedRequest(Post(FireCloudConfig.Rawls.authUrl + "/billing", create)).map { resp =>
-      resp.status.isSuccess
-    }
   }
 
   override def getProjects(implicit userToken: WithAccessToken): Future[Seq[RawlsBillingProjectMembership]] = {

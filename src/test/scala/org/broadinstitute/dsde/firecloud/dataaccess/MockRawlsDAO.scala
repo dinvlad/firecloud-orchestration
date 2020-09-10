@@ -11,8 +11,6 @@ import spray.http.StatusCodes
 import MockRawlsDAO._
 import org.broadinstitute.dsde.firecloud.model.ManagedGroupRoles.ManagedGroupRole
 import org.broadinstitute.dsde.firecloud.model.MethodRepository.AgoraConfigurationShort
-import org.broadinstitute.dsde.firecloud.model.Trial.ProjectRoles.ProjectRole
-import org.broadinstitute.dsde.firecloud.model.Trial.{ProjectRoles, RawlsBillingProjectMember}
 import org.broadinstitute.dsde.rawls.model
 import org.broadinstitute.dsde.workbench.model.{WorkbenchEmail, WorkbenchGroupName}
 import org.broadinstitute.dsde.workbench.util.health.SubsystemStatus

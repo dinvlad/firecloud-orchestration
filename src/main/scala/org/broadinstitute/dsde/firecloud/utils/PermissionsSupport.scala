@@ -57,9 +57,6 @@ trait PermissionsSupport {
     }
   }
 
-  def asTrialCampaignManager(op: => Future[PerRequestMessage])(implicit userInfo: UserInfo): Future[PerRequestMessage] =
-    asGroupMember(FireCloudConfig.Trial.managerGroup)(op)
-
   def asGroupMember(group: String)(op: => Future[PerRequestMessage])(implicit userInfo: UserInfo): Future[PerRequestMessage] = {
     tryIsGroupMember(userInfo, group) flatMap { isGroupMember =>
       if (isGroupMember) op else Future.failed(new FireCloudExceptionWithErrorReport(ErrorReport(StatusCodes.Forbidden, "You must be in the appropriate group.")))

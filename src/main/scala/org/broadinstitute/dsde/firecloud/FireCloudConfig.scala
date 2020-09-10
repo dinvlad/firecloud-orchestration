@@ -1,7 +1,7 @@
 package org.broadinstitute.dsde.firecloud
 
 import akka.http.scaladsl.model.Uri
-import akka.http.scaladsl.model.Uri.{Authority, Host}
+import akka.http.scaladsl.model.Uri.{Authority, Host, Query}
 
 import scala.collection.JavaConverters._
 import com.typesafe.config.{ConfigFactory, ConfigObject}
@@ -97,7 +97,7 @@ object FireCloudConfig {
             case Some(f) => qMap + ("filterTerms" -> f)
             case _ => qMap
           }
-          baseEntityQueryUri.withQuery(filteredQMap)
+          baseEntityQueryUri.withQuery(Query(filteredQMap))
         case _ => baseEntityQueryUri
       }
     }
@@ -166,7 +166,6 @@ object FireCloudConfig {
     val clusterName = elasticsearch.getString("clusterName")
     val indexName = elasticsearch.getString("index") // for library
     val ontologyIndexName = elasticsearch.getString("ontologyIndex")
-    val trialIndexName = elasticsearch.getString("trialIndex")
     val discoverGroupNames = elasticsearch.getStringList("discoverGroupNames")
     val shareLogIndexName: String = elasticsearch.getString("shareLogIndex")
     val maxAggregations: Int = Try(elasticsearch.getInt("maxAggregations")).getOrElse(1000)
@@ -191,17 +190,6 @@ object FireCloudConfig {
     val baseConsentUrl = duos.getString("baseConsentUrl")
     val baseOntologyUrl = duos.getString("baseOntologyUrl")
     val dulvn = duos.getInt("dulvn")
-  }
-
-  object Trial {
-    private val trial = config.getConfig("trial")
-    val durationDays = trial.getInt("durationDays")
-    val managerGroup = trial.getString("managerGroup")
-    val billingAccount = trial.getString("billingAccount")
-    val projectBufferSize = trial.getInt("projectBufferSize")
-    val spreadsheet = trial.getConfig("spreadsheet")
-    val spreadsheetId = spreadsheet.getString("id")
-    val spreadsheetUpdateFrequencyMinutes = spreadsheet.getInt("updateFrequencyMinutes")
   }
 
   object Metrics {

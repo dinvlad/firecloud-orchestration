@@ -8,7 +8,9 @@ import java.util.zip.{ZipEntry, ZipFile}
 import akka.actor.{Actor, Props}
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse, StatusCodes}
 import akka.http.scaladsl.model.StatusCodes._
+import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.pattern.pipe
+import akka.stream.Materializer
 import com.typesafe.scalalogging.LazyLogging
 import org.broadinstitute.dsde.firecloud.EntityClient._
 import org.broadinstitute.dsde.firecloud.FireCloudConfig.Rawls
@@ -122,6 +124,8 @@ object EntityClient {
 
 class EntityClient(modelSchema: ModelSchema, googleServicesDAO: GoogleServicesDAO)(implicit val executionContext: ExecutionContext)
   extends Actor with RestJsonClient with TSVFileSupport with LazyLogging {
+
+  implicit val materializer: Materializer
 
   val format = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssZZ")
 
@@ -364,21 +368,23 @@ class EntityClient(modelSchema: ModelSchema, googleServicesDAO: GoogleServicesDA
 
     val importServiceUrl = FireCloudDirectiveUtils.encodeUri(s"${FireCloudConfig.ImportService.server}/$workspaceNamespace/$workspaceName/imports")
 
-    userAuthedRequest(Post(importServiceUrl, importServicePayload))(userInfo) map {
+    userAuthedRequest(Post(importServiceUrl, importServicePayload))(userInfo) flatMap {
       case resp if resp.status == Created =>
-        val importServiceResponse = unmarshal[ImportServiceResponse].apply(resp)
+        val importServiceResponse = Unmarshal(resp).to[ImportServiceResponse]
         // for backwards compatibility, we return Accepted(202), even though import service returns Created(201),
         // and we return a different response payload than what import service returns.
 
-        val responsePayload:PfbImportResponse = PfbImportResponse(
-          jobId = importServiceResponse.jobId,
-          url = pfbRequest.url.getOrElse(""),
-          workspace = WorkspaceName(workspaceNamespace, workspaceName)
-        )
+        importServiceResponse.map { response =>
+          val responsePayload: PfbImportResponse = PfbImportResponse(
+            jobId = response.jobId,
+            url = pfbRequest.url.getOrElse(""),
+            workspace = WorkspaceName(workspaceNamespace, workspaceName)
+          )
 
-        RequestComplete(Accepted, responsePayload)
+          RequestComplete(Accepted, responsePayload)
+        }
       case otherResp =>
-        RequestCompleteWithErrorReport(otherResp.status, otherResp.toString)
+        Future.successful(RequestCompleteWithErrorReport(otherResp.status, otherResp.toString))
 
     }
   }

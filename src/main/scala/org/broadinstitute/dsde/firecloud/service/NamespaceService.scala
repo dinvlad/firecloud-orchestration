@@ -6,7 +6,7 @@ import org.broadinstitute.dsde.firecloud.core.AgoraPermissionHandler
 import org.broadinstitute.dsde.firecloud.dataaccess.AgoraDAO
 import org.broadinstitute.dsde.firecloud.model.MethodRepository.{AgoraPermission, FireCloudPermission}
 import org.broadinstitute.dsde.firecloud.model.ModelJsonProtocol.impFireCloudPermission
-import org.broadinstitute.dsde.firecloud.model.{RequestCompleteWithErrorReport, UserInfo, optAkka2sprayStatus}
+import org.broadinstitute.dsde.firecloud.model.{RequestCompleteWithErrorReport, UserInfo}
 import org.broadinstitute.dsde.firecloud.service.PerRequest.{PerRequestMessage, RequestComplete}
 import org.broadinstitute.dsde.firecloud.{Application, FireCloudExceptionWithErrorReport}
 import spray.json.DefaultJsonProtocol._
@@ -43,7 +43,7 @@ class NamespaceService (protected val argUserInfo: UserInfo, val agoraDAO: Agora
         RequestComplete(OK, perms map AgoraPermissionHandler.toFireCloudPermission)
     } recover {
       case e: FireCloudExceptionWithErrorReport =>
-        RequestComplete(optAkka2sprayStatus(e.errorReport.statusCode).getOrElse(InternalServerError), e.errorReport)
+        RequestComplete(e.errorReport.statusCode.getOrElse(InternalServerError), e.errorReport)
       case e: Throwable =>
         RequestCompleteWithErrorReport(InternalServerError, e.getMessage)
     }

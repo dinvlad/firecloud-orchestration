@@ -15,10 +15,8 @@ import org.broadinstitute.dsde.firecloud.metrics.MetricsActor
 import org.broadinstitute.dsde.firecloud.model.{ModelSchema, UserInfo, WithAccessToken}
 
 import scala.concurrent.{ExecutionContext, Future}
-//import org.broadinstitute.dsde.firecloud.service.TrialService.UpdateBillingReport
 import org.slf4j.LoggerFactory
 import org.broadinstitute.dsde.firecloud.service._
-import org.broadinstitute.dsde.firecloud.trial.ProjectManager
 import org.broadinstitute.dsde.firecloud.webservice._
 import org.broadinstitute.dsde.workbench.util.health.HealthMonitor
 import org.elasticsearch.client.transport.TransportClient
@@ -45,7 +43,6 @@ trait FireCloudApiService extends FireCloudDirectives
   with MethodsApiService
   with Ga4ghApiService
   with UserApiService
-  with TrialApiService
   with SwaggerApiService
   with ShareLogApiService
   with ManagedGroupApiService
@@ -114,23 +111,11 @@ trait FireCloudApiService extends FireCloudDirectives
   val workspaceServiceConstructor: (WithAccessToken) => WorkspaceService //= WorkspaceService.constructor(app)
   val statusServiceConstructor: () => StatusService //= StatusService.constructor(healthMonitor)
   val permissionReportServiceConstructor: (UserInfo) => PermissionReportService //= PermissionReportService.constructor(app)
-  val trialServiceConstructor: () => TrialService //= TrialService.constructor(app, trialProjectManager)
   val userServiceConstructor: (UserInfo) => UserService //= UserService.constructor(app)
   val shareLogServiceConstructor: () => ShareLogService //= ShareLogService.constructor(app)
   val managedGroupServiceConstructor: (WithAccessToken) => ManagedGroupService //= ManagedGroupService.constructor(app)
 
   implicit val materializer: Materializer
-
-  if (FireCloudConfig.Trial.spreadsheetId.nonEmpty && FireCloudConfig.Trial.spreadsheetUpdateFrequencyMinutes > 0) {
-    val freq = FireCloudConfig.Trial.spreadsheetUpdateFrequencyMinutes
-    val scheduledTrialService = system.actorOf(TrialService.props(trialServiceConstructor), "trial-spreadsheet-actor")
-    // use a randomized startup delay to avoid multiple instances of this app executing on the same cycle
-    val initialDelay = 1 + scala.util.Random.nextInt(freq/2)
-    logger.info(s"Free credits spreadsheet updates are enabled: every $freq minutes, starting $initialDelay minutes from now.")
-    system.scheduler.schedule(initialDelay.minutes, freq.minutes, scheduledTrialService, UpdateBillingReport(FireCloudConfig.Trial.spreadsheetId))
-  } else {
-    logger.info("Free credits spreadsheet id or update frequency not found in configuration. Spreadsheet updates are disabled for this instance.")
-  }
 
   // routes under /api
 //  val methodConfigurationService = new MethodConfigurationService with ActorRefFactoryContext
@@ -180,7 +165,6 @@ trait FireCloudApiService extends FireCloudDirectives
       submissionsService.routes ~
       nihRoutes ~
       billingService.routes ~
-      trialApiServiceRoutes ~
       shareLogServiceRoutes ~
       staticNotebooksRoutes
     }

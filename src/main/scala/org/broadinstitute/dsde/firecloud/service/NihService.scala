@@ -1,5 +1,6 @@
 package org.broadinstitute.dsde.firecloud.service
 
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.model.StatusCodes._
 import com.typesafe.scalalogging.LazyLogging
@@ -48,7 +49,7 @@ class NihServiceActor(val samDao: SamDAO, val thurloeDao: ThurloeDAO, val google
   def SyncWhitelist(whitelistName: String) = syncWhitelistAllUsers(whitelistName)
 }
 
-trait NihService extends LazyLogging {
+trait NihService extends LazyLogging with SprayJsonSupport {
   implicit val executionContext: ExecutionContext
   val samDao: SamDAO
   val thurloeDao: ThurloeDAO

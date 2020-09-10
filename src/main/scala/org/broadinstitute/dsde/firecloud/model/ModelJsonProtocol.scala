@@ -1,5 +1,6 @@
 package org.broadinstitute.dsde.firecloud.model
 
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.model.{StatusCode, StatusCodes}
 import akka.http.scaladsl.server.MalformedRequestContentRejection
 import org.broadinstitute.dsde.firecloud.model.DUOS._
@@ -26,7 +27,7 @@ import org.broadinstitute.dsde.workbench.model.WorkbenchIdentityJsonSupport._
 import scala.util.{Failure, Success, Try}
 
 //noinspection TypeAnnotation,RedundantNewCaseClass
-object ModelJsonProtocol extends WorkspaceJsonSupport {
+object ModelJsonProtocol extends WorkspaceJsonSupport with SprayJsonSupport {
   import spray.json.DefaultJsonProtocol._
 
   def optionalEntryIntReader(fieldName: String, data: Map[String,JsValue]): Option[Int] = {
@@ -353,7 +354,6 @@ object ModelJsonProtocol extends WorkspaceJsonSupport {
   implicit val impCreateProjectsResponse = jsonFormat3(CreateProjectsResponse)
 
   implicit val impCreateRawlsBillingProjectFullRequestFormat = jsonFormat2(CreateRawlsBillingProjectFullRequest)
-  implicit val impSpreadsheetResponse = jsonFormat1(SpreadsheetResponse)
 
 
   implicit object ShareTypeFormat extends RootJsonFormat[ShareType.Value] {

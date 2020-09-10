@@ -8,7 +8,7 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.ExecutionContext.Implicits.global
 import akka.stream.ActorMaterializer
 import com.typesafe.scalalogging.LazyLogging
-import org.broadinstitute.dsde.firecloud.dataaccess.{AgoraDAO, ConsentDAO, ESResearchPurposeSupport, ElasticSearchDAO, ElasticSearchOntologyDAO, ElasticSearchShareLogDAO, ElasticSearchTrialDAO, GoogleServicesDAO, HttpAgoraDAO, HttpConsentDAO, HttpGoogleServicesDAO, HttpLogitDAO, HttpRawlsDAO, HttpSamDAO, HttpThurloeDAO, LogitDAO, NoopLogitDAO, OntologyDAO, RawlsDAO, ResearchPurposeSupport, SamDAO, SearchDAO, ShareLogDAO, ThurloeDAO, TrialDAO}
+import org.broadinstitute.dsde.firecloud.dataaccess.{AgoraDAO, ConsentDAO, ESResearchPurposeSupport, ElasticSearchDAO, ElasticSearchOntologyDAO, ElasticSearchShareLogDAO, GoogleServicesDAO, HttpAgoraDAO, HttpConsentDAO, HttpGoogleServicesDAO, HttpLogitDAO, HttpRawlsDAO, HttpSamDAO, HttpThurloeDAO, LogitDAO, NoopLogitDAO, OntologyDAO, RawlsDAO, ResearchPurposeSupport, SamDAO, SearchDAO, ShareLogDAO, ThurloeDAO}
 import org.broadinstitute.dsde.firecloud.elastic.ElasticUtils
 import org.elasticsearch.client.transport.TransportClient
 
@@ -33,7 +33,6 @@ object FireCloudApp extends App with LazyLogging {
     val consentDAO:ConsentDAO = new HttpConsentDAO
     val researchPurposeSupport:ResearchPurposeSupport = new ESResearchPurposeSupport(ontologyDAO)
     val searchDAO:SearchDAO = new ElasticSearchDAO(elasticSearchClient, FireCloudConfig.ElasticSearch.indexName, researchPurposeSupport)
-    val trialDAO:TrialDAO = new ElasticSearchTrialDAO(elasticSearchClient, FireCloudConfig.ElasticSearch.trialIndexName)
     val logitDAO:LogitDAO = if (logitMetricsEnabled)
       new HttpLogitDAO(FireCloudConfig.Metrics.logitUrl, FireCloudConfig.Metrics.logitApiKey.get)
     else

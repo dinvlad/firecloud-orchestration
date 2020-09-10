@@ -2,9 +2,10 @@ package org.broadinstitute.dsde.firecloud.service
 
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.model.StatusCodes
+import org.broadinstitute.dsde.firecloud.model.ModelJsonProtocol._
+import spray.json.DefaultJsonProtocol._
 import com.typesafe.scalalogging.LazyLogging
 import org.broadinstitute.dsde.firecloud.dataaccess._
-import org.broadinstitute.dsde.firecloud.model.Trial.UserTrialStatus
 import org.broadinstitute.dsde.firecloud.model._
 import org.broadinstitute.dsde.firecloud.service.PerRequest.{PerRequestMessage, RequestComplete}
 import org.broadinstitute.dsde.firecloud.{Application, FireCloudConfig, FireCloudExceptionWithErrorReport}
@@ -17,11 +18,11 @@ import scala.concurrent.{ExecutionContext, Future}
 object RegisterService {
 
   def constructor(app: Application)()(implicit executionContext: ExecutionContext) =
-    new RegisterService(app.rawlsDAO, app.samDAO, app.thurloeDAO, app.trialDAO, app.googleServicesDAO)
+    new RegisterService(app.rawlsDAO, app.samDAO, app.thurloeDAO, app.googleServicesDAO)
 }
 
-class RegisterService(val rawlsDao: RawlsDAO, val samDao: SamDAO, val thurloeDao: ThurloeDAO, val trialDao: TrialDAO, val googleServicesDAO: GoogleServicesDAO)
-  (implicit protected val executionContext: ExecutionContext) extends TrialServiceSupport with LazyLogging  with SprayJsonSupport with DefaultJsonProtocol {
+class RegisterService(val rawlsDao: RawlsDAO, val samDao: SamDAO, val thurloeDao: ThurloeDAO, val googleServicesDAO: GoogleServicesDAO)
+  (implicit protected val executionContext: ExecutionContext) extends LazyLogging with SprayJsonSupport {
 
   def CreateUpdateProfile(userInfo: UserInfo, basicProfile: BasicProfile) = createUpdateProfile(userInfo, basicProfile)
   def UpdateProfilePreferences(userInfo: UserInfo, preferences: Map[String, String]) = updateProfilePreferences(userInfo, preferences)
@@ -54,16 +55,9 @@ class RegisterService(val rawlsDao: RawlsDAO, val samDao: SamDAO, val thurloeDao
   private def registerUser(userInfo: UserInfo): Future[RegistrationInfo] = {
     for {
       registrationInfo <- samDao.registerUser(userInfo)
-      freeCredits:Either[Exception,UserTrialStatus] <- enableSelfForFreeCredits(userInfo)
-        .map(Right(_)) recover { case e: Exception => Left(e) }
       _ <- googleServicesDAO.publishMessages(FireCloudConfig.Notification.fullyQualifiedNotificationTopic, Seq(NotificationFormat.write(ActivationNotification(RawlsUserSubjectId(userInfo.id))).compactPrint))
     } yield {
-      val messages:Option[List[String]] = freeCredits match {
-        case Left(ex) => Some(registrationInfo.messages.getOrElse(List.empty[String]) :+
-          s"Error enabling free credits during registration. Underlying error: ${ex.getMessage}")
-        case Right(_) => registrationInfo.messages
-      }
-      registrationInfo.copy(messages = messages)
+      registrationInfo
     }
   }
 

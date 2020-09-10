@@ -86,36 +86,6 @@ class HttpThurloeDAO ( implicit val system: ActorSystem, implicit val executionC
     val profilePropertyMap = profile.propertyValueMap
     saveKeyValues(userInfo, profilePropertyMap).map(_ => ())
   }
-  /**
-    * get the UserTrialStatus associated with a specific user.
-    *
-    * @param forUserId the subjectid of the user whose trial status to get
-    * @param callerToken the OAuth token of the person making the API call
-    * @return the trial status for the specified user, or a default UserTrialStatus object
-    */
-  override def getTrialStatus(forUserId: String, callerToken: WithAccessToken): Future[UserTrialStatus] = {
-    getAllKVPs(forUserId, callerToken) map {
-      case Some(wrapper) =>
-        val status = UserTrialStatus(wrapper)
-        assert(forUserId == status.userId, "status id does not match!")
-        status
-      case None =>
-        throw new FireCloudException("Unable to get user trial status")
-    }
-  }
-
-  /**
-    * set the UserTrialStatus for a specific user
-    *
-    * @param forUserId the subjectid of the user whose trial status to set
-    * @param callerToken the OAuth token of the person making the API call
-    * @param trialStatus the trial status to save for the specified user
-    * @return success/failure of whether or not the status saved correctly
-    */
-  override def saveTrialStatus(forUserId: String, callerToken: WithAccessToken, trialStatus: UserTrialStatus): Future[Try[Unit]] = {
-    saveKeyValues(forUserId, callerToken, UserTrialStatus.toKVPs(trialStatus))
-  }
-
 
   private def wrapExceptions[T](codeBlock: => Future[T]): Future[T] = {
     codeBlock.recover {
@@ -144,7 +114,7 @@ class HttpThurloeDAO ( implicit val system: ActorSystem, implicit val executionC
           //todo: rewrite as a for-comp?
           val profileKVPs:Future[List[ProfileKVP]] = Unmarshal(response).to[List[ProfileKVP]]
           val groupedByUser:Future[Map[String, List[ProfileKVP]]] = profileKVPs.map(x => x.groupBy(_.userId))
-          val x = groupedByUser.map{
+          val x = groupedByUser.flatMap{
             case(userId:String, kvps:List[ProfileKVP]) => ProfileWrapper(userId, kvps.map(_.keyValuePair))
           }
 

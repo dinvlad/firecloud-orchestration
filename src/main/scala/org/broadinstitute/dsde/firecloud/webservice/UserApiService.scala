@@ -1,17 +1,17 @@
 package org.broadinstitute.dsde.firecloud.webservice
 
-import akka.http.scaladsl.model.HttpMethods
+import akka.http.scaladsl.model.{HttpMethods, StatusCode}
 import akka.http.scaladsl.model.headers.{Authorization, HttpCredentials}
 import org.broadinstitute.dsde.firecloud.FireCloudConfig
 import org.broadinstitute.dsde.firecloud.dataaccess.HttpGoogleServicesDAO
 import org.broadinstitute.dsde.firecloud.model.ModelJsonProtocol._
 import org.broadinstitute.dsde.firecloud.model._
-import org.broadinstitute.dsde.firecloud.service.UserService.{DeleteTerraPreference, GetTerraPreference, ImportPermission, SetTerraPreference}
 import org.broadinstitute.dsde.firecloud.service._
 import org.broadinstitute.dsde.firecloud.utils.StandardUserInfoDirectives
 import org.broadinstitute.dsde.rawls.model.ErrorReport
 import org.slf4j.LoggerFactory
 import akka.http.scaladsl.model.StatusCodes._
+import akka.http.scaladsl.server.RequestContext
 //import spray.client.pipelining._
 //import spray.http.HttpHeaders.Authorization
 //import spray.http.StatusCodes._
@@ -67,7 +67,6 @@ trait UserApiService extends FireCloudRequestBuilding with FireCloudDirectives w
 
   lazy val log = LoggerFactory.getLogger(getClass)
 
-  val trialServiceConstructor: () => TrialService
   val userServiceConstructor: (UserInfo) => UserService
 
   val userServiceRoutes =
@@ -119,54 +118,25 @@ trait UserApiService extends FireCloudRequestBuilding with FireCloudDirectives w
       } ~
       path("profile" / "importstatus") {
         get {
-          requireUserInfo() { userInfo => requestContext =>
-            perRequest(requestContext, UserService.props(userServiceConstructor, userInfo), ImportPermission)
+          requireUserInfo() { userInfo =>
+            complete { userServiceConstructor(userInfo).ImportPermission }
           }
         }
       } ~
       path("profile" / "terra") {
         get {
-          requireUserInfo() { userInfo => requestContext =>
-            perRequest(requestContext, UserService.props(userServiceConstructor, userInfo), GetTerraPreference)
+          requireUserInfo() { userInfo =>
+            complete { userServiceConstructor(userInfo).GetTerraPreference }
           }
         } ~
         post {
-          requireUserInfo() { userInfo => requestContext =>
-            perRequest(requestContext, UserService.props(userServiceConstructor, userInfo), SetTerraPreference)
+          requireUserInfo() { userInfo =>
+            complete { userServiceConstructor(userInfo).SetTerraPreference }
           }
         } ~
         delete {
-          requireUserInfo() { userInfo => requestContext =>
-            perRequest(requestContext, UserService.props(userServiceConstructor, userInfo), DeleteTerraPreference)
-          }
-        }
-      } ~
-      pathPrefix("profile" / "trial") {
-        pathEnd {
-          post {
-            parameter("operation" ? "enroll") { op =>
-              requireUserInfo() { userInfo => requestContext =>
-                val operation = op.toLowerCase match {
-                  case "enroll" => Some(TrialService.EnrollUser(userInfo))
-                  case "finalize" => Some(TrialService.FinalizeUser(userInfo))
-                  case _ => None
-                }
-
-                if (operation.nonEmpty)
-                  perRequest(requestContext, TrialService.props(trialServiceConstructor), operation.get)
-                else
-                  requestContext.complete(BadRequest, ErrorReport(s"Invalid operation '$op'"))
-              }
-            }
-          }
-        } ~
-        path("userAgreement") {
-          put {
-            requireUserInfo() { userInfo => requestContext =>
-              perRequest(requestContext,
-                TrialService.props(trialServiceConstructor),
-                TrialService.RecordUserAgreement(userInfo))
-            }
+          requireUserInfo() { userInfo =>
+            complete { userServiceConstructor(userInfo).DeleteTerraPreference }
           }
         }
       } ~
@@ -192,10 +162,7 @@ trait UserApiService extends FireCloudRequestBuilding with FireCloudDirectives w
         pathEnd {
           get {
             requireUserInfo() { userInfo =>
-              requestContext =>
-                perRequest(requestContext,
-                  UserService.props(userServiceConstructor, userInfo),
-                  UserService.GetAllUserKeys)
+              complete { userServiceConstructor(userInfo).GetAllUserKeys }
             }
           }
         }

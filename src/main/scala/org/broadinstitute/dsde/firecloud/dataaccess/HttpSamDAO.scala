@@ -5,6 +5,7 @@ import java.nio.charset.StandardCharsets.UTF_8
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model.HttpRequest
 import akka.http.scaladsl.unmarshalling.Unmarshal
@@ -29,7 +30,7 @@ import scala.concurrent.{ExecutionContext, Future}
   * Created by mbemis on 8/21/17.
   */
 class HttpSamDAO( implicit val system: ActorSystem, val materializer: Materializer, implicit val executionContext: ExecutionContext )
-  extends SamDAO with RestJsonClient {
+  extends SamDAO with RestJsonClient with SprayJsonSupport {
 
   override val http = Http(system)
 
